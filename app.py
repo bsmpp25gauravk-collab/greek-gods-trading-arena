@@ -1,6 +1,20 @@
 from flask import Flask, render_template, request, jsonify
 import math, random
-from scipy.stats import norm
+
+# ── Pure-Python normal distribution (replaces scipy) ──────────────────────────
+def _norm_cdf(x):
+    """Cumulative standard normal distribution using math.erfc."""
+    return math.erfc(-x / math.sqrt(2)) / 2
+
+def _norm_pdf(x):
+    """Standard normal probability density function."""
+    return math.exp(-0.5 * x * x) / math.sqrt(2 * math.pi)
+
+class _norm:
+    cdf = staticmethod(_norm_cdf)
+    pdf = staticmethod(_norm_pdf)
+
+norm = _norm()
 
 app = Flask(__name__)
 
