@@ -18,9 +18,11 @@
     </a>
     <ul class="nav-links">
       <li><a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Home</a></li>
-      <li><a href="/study" class="nav-link {% if request.endpoint == 'study' %}active{% endif %}">Study Greeks</a></li>
+      <li><a href="/study" class="nav-link {% if request.endpoint == 'study' %}active{% endif %}">Study</a></li>
       <li><a href="/calculator" class="nav-link {% if request.endpoint == 'calculator' %}active{% endif %}">Calculator</a></li>
       <li><a href="/scenarios" class="nav-link {% if request.endpoint == 'scenarios' %}active{% endif %}">Scenarios</a></li>
+      <li><a href="/portfolio" class="nav-link nav-link-gold {% if request.endpoint == 'portfolio' %}active{% endif %}">📊 Portfolio</a></li>
+      <li><a href="/arena" class="nav-link nav-link-arena {% if request.endpoint == 'arena' %}active{% endif %}">🎮 Arena</a></li>
     </ul>
     <div class="nav-badge">NSE · Nifty50 · India</div>
   </nav>
