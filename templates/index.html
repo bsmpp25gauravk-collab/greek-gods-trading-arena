@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Greek Gods Trading Arena — Options Greeks Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ── HERO ──────────────────────────────── -->
+<section class="hero">
+  <div class="hero-bg-grid"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">ZeTheta Algorithms · Research Project</p>
+    <h1 class="hero-title">
+      GREEK GODS<br>
+      <span class="hero-title-accent">TRADING ARENA</span>
+    </h1>
+    <p class="hero-subtitle">
+      Master Options Greeks · Manage Portfolio Risk · Command the Markets
+    </p>
+    <p class="hero-desc">
+      A gamified, educational simulation for options portfolio risk management.
+      Learn Delta, Gamma, Theta, Vega &amp; Rho through real Black-Scholes calculations,
+      live scenario stress tests, and the India NSE market.
+    </p>
+    <div class="hero-ctas">
+      <a href="/study" class="btn btn-primary">📚 Study the Greeks</a>
+      <a href="/calculator" class="btn btn-secondary">⚡ Try the Calculator</a>
+      <a href="/scenarios" class="btn btn-ghost">🌩 Stress Test</a>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-card">
+      <span class="stat-value">5</span>
+      <span class="stat-label">Primary Greeks</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">6</span>
+      <span class="stat-label">Game Levels</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">BSM</span>
+      <span class="stat-label">Pricing Model</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">NSE</span>
+      <span class="stat-label">India Market</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── WHAT ARE GREEKS ────────────────────── -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">The Five <span class="accent">Greek Gods</span></h2>
+    <p class="section-sub">Each Greek measures a different risk dimension of your options portfolio.</p>
+    <div class="greek-cards">
+
+      <a href="/study#delta" class="greek-card greek-delta">
+        <div class="greek-symbol">Δ</div>
+        <div class="greek-name">DELTA</div>
+        <div class="greek-tagline">God of Direction</div>
+        <div class="greek-desc">Measures how much your option price moves when the stock moves ₹1. Range: 0 to +1 for calls, -1 to 0 for puts.</div>
+        <div class="greek-range">Call: 0 → +1 &nbsp;|&nbsp; Put: -1 → 0</div>
+      </a>
+
+      <a href="/study#gamma" class="greek-card greek-gamma">
+        <div class="greek-symbol">Γ</div>
+        <div class="greek-name">GAMMA</div>
+        <div class="greek-tagline">God of Acceleration</div>
+        <div class="greek-desc">Measures how fast Delta changes. High gamma near ATM options means delta swings wildly — dangerous for short sellers.</div>
+        <div class="greek-range">Always positive for long options</div>
+      </a>
+
+      <a href="/study#theta" class="greek-card greek-theta">
+        <div class="greek-symbol">Θ</div>
+        <div class="greek-name">THETA</div>
+        <div class="greek-tagline">God of Time</div>
+        <div class="greek-desc">Time decay — how much value your option loses each day that passes. Option sellers love Theta. Buyers pay it daily.</div>
+        <div class="greek-range">Negative for long positions</div>
+      </a>
+
+      <a href="/study#vega" class="greek-card greek-vega">
+        <div class="greek-symbol">ν</div>
+        <div class="greek-name">VEGA</div>
+        <div class="greek-tagline">God of Volatility</div>
+        <div class="greek-desc">Sensitivity to implied volatility. A 1% rise in IV increases your option's value by Vega. Critical before earnings.</div>
+        <div class="greek-range">Always positive for long options</div>
+      </a>
+
+      <a href="/study#rho" class="greek-card greek-rho">
+        <div class="greek-symbol">ρ</div>
+        <div class="greek-name">RHO</div>
+        <div class="greek-tagline">God of Rates</div>
+        <div class="greek-desc">Sensitivity to interest rate changes. Positive for calls, negative for puts. Matters most for long-dated options (LEAPS).</div>
+        <div class="greek-range">Call: positive &nbsp;|&nbsp; Put: negative</div>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── GAME LEVELS ────────────────────────── -->
+<section class="section section-dark">
+  <div class="container">
+    <h2 class="section-title">Campaign <span class="accent">Levels</span></h2>
+    <p class="section-sub">Progress from Delta Rookie to Greek Grandmaster.</p>
+    <div class="levels-grid">
+
+      <div class="level-card">
+        <span class="level-num">01</span>
+        <span class="level-badge">🟢 Beginner</span>
+        <h3>Delta Rookie</h3>
+        <p>Hedge a single long call to delta-neutral. Learn what directional exposure means in rupee terms.</p>
+        <div class="level-reward">🏅 "Delta Initiate" Badge · 100 XP</div>
+      </div>
+
+      <div class="level-card">
+        <span class="level-num">02</span>
+        <span class="level-badge">🟡 Apprentice</span>
+        <h3>Delta Apprentice</h3>
+        <p>Manage 5 positions. Keep net delta between -50 and +50 while Nifty moves ±5%.</p>
+        <div class="level-reward">🏅 "Delta Master" Badge · 200 XP</div>
+      </div>
+
+      <div class="level-card">
+        <span class="level-num">03</span>
+        <span class="level-badge">🟠 Intermediate</span>
+        <h3>Gamma Guardian</h3>
+        <p>Navigate a volatility spike near expiry. Manage gamma risk during a 3-day period with a market gap.</p>
+        <div class="level-reward">🏅 "Gamma Guardian" Badge · 300 XP</div>
+      </div>
+
+      <div class="level-card">
+        <span class="level-num">04</span>
+        <span class="level-badge">🔵 Advanced</span>
+        <h3>Theta Harvester</h3>
+        <p>Run a Bank Nifty weekly options desk. Maximize theta income without blowing up on adverse moves.</p>
+        <div class="level-reward">🏅 "Time Collector" Badge · 400 XP</div>
+      </div>
+
+      <div class="level-card">
+        <span class="level-num">05</span>
+        <span class="level-badge">🟣 Expert</span>
+        <h3>Vega Voyager</h3>
+        <p>Navigate earnings season. Survive IV expansion and IV crush across 5 positions.</p>
+        <div class="level-reward">🏅 "Volatility Navigator" Badge · 500 XP</div>
+      </div>
+
+      <div class="level-card level-final">
+        <span class="level-num">06</span>
+        <span class="level-badge">🔴 Master</span>
+        <h3>Greek Grandmaster</h3>
+        <p>The Perfect Storm. Manage all Greeks simultaneously during a 2008-style crisis scenario.</p>
+        <div class="level-reward">👑 "Greek God" Title · 1000 XP</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── QUICK LINKS ────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Start <span class="accent">Exploring</span></h2>
+    <div class="quick-links">
+      <a href="/study" class="ql-card">
+        <span class="ql-icon">📚</span>
+        <h3>Study Greeks</h3>
+        <p>Deep-dive explanations of all 5 primary Greeks with formulas, intuition, and real examples from NSE Nifty.</p>
+        <span class="ql-arrow">→</span>
+      </a>
+      <a href="/calculator" class="ql-card">
+        <span class="ql-icon">⚡</span>
+        <h3>BSM Calculator</h3>
+        <p>Enter any Nifty option's details and instantly get all Greeks calculated using Black-Scholes-Merton.</p>
+        <span class="ql-arrow">→</span>
+      </a>
+      <a href="/scenarios" class="ql-card">
+        <span class="ql-icon">🌩</span>
+        <h3>Scenario Engine</h3>
+        <p>Stress test your position against 6 market scenarios — from mild pullbacks to Black Swan crashes.</p>
+        <span class="ql-arrow">→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

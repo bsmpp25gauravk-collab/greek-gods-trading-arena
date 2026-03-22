@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+{% block title %}Study the Greeks — Greek Gods Trading Arena{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="container">
+    <p class="page-eyebrow">📚 Learn · Understand · Apply</p>
+    <h1 class="page-title">Study the <span class="accent">Greeks</span></h1>
+    <p class="page-subtitle">From raw formulas to real portfolio decisions — everything you need to master Options Greeks.</p>
+    <div class="study-nav">
+      <a href="#delta" class="snav-btn">Δ Delta</a>
+      <a href="#gamma" class="snav-btn">Γ Gamma</a>
+      <a href="#theta" class="snav-btn">Θ Theta</a>
+      <a href="#vega"  class="snav-btn">ν Vega</a>
+      <a href="#rho"   class="snav-btn">ρ Rho</a>
+      <a href="#portfolio" class="snav-btn">📊 Portfolio</a>
+    </div>
+  </div>
+</div>
+
+<div class="container study-page">
+
+  <!-- ══════════════════════════════════════
+       DELTA
+  ══════════════════════════════════════ -->
+  <section class="greek-section" id="delta">
+    <div class="gs-header">
+      <div class="gs-symbol delta-color">Δ</div>
+      <div>
+        <h2 class="gs-name">DELTA — The God of Direction</h2>
+        <p class="gs-tagline">How much does my option move when the stock moves?</p>
+      </div>
+    </div>
+
+    <div class="gs-grid">
+      <div class="gs-main">
+        <h3>What is Delta?</h3>
+        <p>Delta (Δ) tells you <strong>how much your option's price changes when the underlying asset moves by ₹1</strong>. It is the most important Greek for day-to-day trading.</p>
+
+        <div class="formula-box">
+          <span class="formula-label">MATHEMATICAL DEFINITION</span>
+          <div class="formula">Δ = ∂V / ∂S</div>
+          <div class="formula-explain">Where V = Option Price, S = Stock/Index Price</div>
+          <div class="formula">Delta (Call) = N(d₁)</div>
+          <div class="formula">Delta (Put) = N(d₁) – 1</div>
+        </div>
+
+        <h3>Key Ranges</h3>
+        <div class="range-bars">
+          <div class="range-item">
+            <span class="rb-label">Deep OTM Call</span>
+            <div class="rb-bar"><div class="rb-fill" style="width:5%; background:#f5a623;"></div></div>
+            <span class="rb-val">≈ 0.05</span>
+          </div>
+          <div class="range-item">
+            <span class="rb-label">ATM Call</span>
+            <div class="rb-bar"><div class="rb-fill" style="width:50%; background:#f5a623;"></div></div>
+            <span class="rb-val">≈ 0.50</span>
+          </div>
+          <div class="range-item">
+            <span class="rb-label">Deep ITM Call</span>
+            <div class="rb-bar"><div class="rb-fill" style="width:95%; background:#4ecdc4;"></div></div>
+            <span class="rb-val">≈ 0.95</span>
+          </div>
+          <div class="range-item">
+            <span class="rb-label">ATM Put</span>
+            <div class="rb-bar rb-neg"><div class="rb-fill" style="width:50%; background:#ff6b6b;"></div></div>
+            <span class="rb-val">≈ -0.50</span>
+          </div>
+          <div class="range-item">
+            <span class="rb-label">Deep ITM Put</span>
+            <div class="rb-bar rb-neg"><div class="rb-fill" style="width:95%; background:#ff6b6b;"></div></div>
+            <span class="rb-val">≈ -0.95</span>
+          </div>
+        </div>
+
+        <h3>Practical Uses</h3>
+        <div class="use-cards">
+          <div class="use-card">
+            <span class="uc-icon">🎯</span>
+            <strong>Hedge Ratio</strong>
+            <p>Delta = 0.50 means to hedge 1 option lot, you need to buy/sell 0.50 × lot_size shares of the underlying.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">🎲</span>
+            <strong>Probability Proxy</strong>
+            <p>An ATM call with delta 0.50 has roughly a 50% chance of expiring in-the-money. OTM call with delta 0.20 → ~20% chance.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">📊</span>
+            <strong>Portfolio Direction</strong>
+            <p>Portfolio Delta = sum of all position deltas. A delta-neutral portfolio has ≈ zero directional risk.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-sidebar">
+        <div class="quick-facts">
+          <h4>⚡ Quick Facts</h4>
+          <table class="facts-table">
+            <tr><td>Call range</td><td class="accent">0 to +1</td></tr>
+            <tr><td>Put range</td><td class="accent">-1 to 0</td></tr>
+            <tr><td>ATM value</td><td class="accent">≈ ±0.50</td></tr>
+            <tr><td>Unit</td><td class="accent">₹ per ₹1 move</td></tr>
+          </table>
+        </div>
+        <div class="nse-example">
+          <h4>🇮🇳 NSE Example</h4>
+          <p>Nifty at 23,741. You buy 1 lot (65 units) of the 23,750 CE (ATM call).</p>
+          <p>Delta ≈ 0.51.</p>
+          <p><strong>If Nifty rises ₹100:</strong><br>
+          Option gains ≈ ₹51 per unit × 65 = <span class="profit">₹3,315 profit</span>.</p>
+          <p><strong>Dollar Delta:</strong><br>
+          0.51 × 23,741 × 65 = <span class="accent">₹7,87,735</span> equivalent exposure.</p>
+        </div>
+        <div class="risk-alert">
+          <h4>⚠️ Key Risk</h4>
+          <p>Delta changes constantly as the stock moves. A position that is delta-neutral today becomes directional after any move — this is Gamma risk.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       GAMMA
+  ══════════════════════════════════════ -->
+  <section class="greek-section" id="gamma">
+    <div class="gs-header">
+      <div class="gs-symbol gamma-color">Γ</div>
+      <div>
+        <h2 class="gs-name">GAMMA — The God of Acceleration</h2>
+        <p class="gs-tagline">How fast is my Delta changing?</p>
+      </div>
+    </div>
+
+    <div class="gs-grid">
+      <div class="gs-main">
+        <h3>What is Gamma?</h3>
+        <p>Gamma (Γ) is the <strong>rate of change of Delta</strong>. If Delta tells you speed, Gamma tells you acceleration. High Gamma means your Delta (and therefore your P&L) can swing violently with small moves.</p>
+
+        <div class="formula-box">
+          <span class="formula-label">MATHEMATICAL DEFINITION</span>
+          <div class="formula">Γ = ∂²V / ∂S² = ∂Δ / ∂S</div>
+          <div class="formula">Γ = N'(d₁) / (S × σ × √T)</div>
+          <div class="formula-explain">Where N'(d₁) = standard normal PDF at d₁</div>
+        </div>
+
+        <h3>Why Gamma Matters</h3>
+        <div class="use-cards">
+          <div class="use-card">
+            <span class="uc-icon">🚀</span>
+            <strong>Convexity (Long Gamma)</strong>
+            <p>Long options have positive gamma. This means you benefit more from big moves than the delta predicts — you win from both large up and large down moves.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">💥</span>
+            <strong>Short Gamma Risk</strong>
+            <p>Option sellers have negative gamma. A 5% gap move can turn a small delta into a huge loss because delta changed so fast. GameStop 2021 was a gamma squeeze.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">📅</span>
+            <strong>Pin Risk at Expiry</strong>
+            <p>ATM options near expiry have maximum gamma. A tiny Nifty move from 23,740 to 23,760 on expiry day can flip delta from 0.1 to 0.9 — massive delta change.</p>
+          </div>
+        </div>
+
+        <div class="case-study-box">
+          <h4>📰 Case Study: GameStop Gamma Squeeze (Jan 2021)</h4>
+          <p>GME stock rose from $20 to $483 in weeks. Short-sellers had sold call options — giving them negative gamma exposure. As GME rose, their delta hedge required buying more and more shares. This buying drove the price higher, which forced more delta hedging, creating a self-reinforcing feedback loop.</p>
+          <p><strong>Key lesson:</strong> Never carry large negative gamma near expiry without understanding your worst-case delta exposure.</p>
+        </div>
+      </div>
+
+      <div class="gs-sidebar">
+        <div class="quick-facts">
+          <h4>⚡ Quick Facts</h4>
+          <table class="facts-table">
+            <tr><td>Long options</td><td class="accent">+Gamma</td></tr>
+            <tr><td>Short options</td><td class="accent">-Gamma</td></tr>
+            <tr><td>Highest at</td><td class="accent">ATM, near expiry</td></tr>
+            <tr><td>Lowest at</td><td class="accent">Deep ITM/OTM</td></tr>
+          </table>
+        </div>
+        <div class="nse-example">
+          <h4>🇮🇳 NSE Example</h4>
+          <p>Nifty at 23,741. ATM call gamma ≈ 0.00064.</p>
+          <p>If Nifty moves +100 points:</p>
+          <p>New Delta ≈ Old Delta + Gamma × 100<br>
+          = 0.51 + 0.00064 × 100<br>
+          = <span class="accent">0.574</span></p>
+          <p>On expiry day, gamma can be 10× higher — tiny moves cause huge delta swings.</p>
+        </div>
+        <div class="risk-alert">
+          <h4>⚠️ Key Risk</h4>
+          <p>Being short gamma near expiry is extremely dangerous. Bank Nifty weekly options on Wednesday mornings can have gamma 20× the normal level.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       THETA
+  ══════════════════════════════════════ -->
+  <section class="greek-section" id="theta">
+    <div class="gs-header">
+      <div class="gs-symbol theta-color">Θ</div>
+      <div>
+        <h2 class="gs-name">THETA — The God of Time</h2>
+        <p class="gs-tagline">How much value does my option lose each day?</p>
+      </div>
+    </div>
+
+    <div class="gs-grid">
+      <div class="gs-main">
+        <h3>What is Theta?</h3>
+        <p>Theta (Θ) measures <strong>time decay</strong> — how much your option's price falls with every passing day, holding everything else constant. For long option buyers, theta is a silent enemy. For option sellers, it is a daily income stream.</p>
+
+        <div class="formula-box">
+          <span class="formula-label">MATHEMATICAL DEFINITION</span>
+          <div class="formula">Θ = ∂V / ∂t</div>
+          <div class="formula">Θ (Call) = –[S·N'(d₁)·σ / (2√T)] – r·K·e<sup>–rT</sup>·N(d₂)</div>
+          <div class="formula-explain">Theta is typically expressed as value lost per day (divide annual theta by 365)</div>
+        </div>
+
+        <h3>Time Decay Accelerates</h3>
+        <p>Theta is not linear — it accelerates as expiry approaches. An option with 30 days to expiry decays slowly. In the final 7 days, decay speeds up dramatically. On expiry day itself, time value evaporates completely.</p>
+
+        <div class="theta-timeline">
+          <div class="tt-bar" style="height:20px; background:#888899;">30 DTE — Slow decay</div>
+          <div class="tt-bar" style="height:40px; background:#f5a623;">14 DTE — Moderate decay</div>
+          <div class="tt-bar" style="height:70px; background:#ff8c42;">7 DTE — Fast decay</div>
+          <div class="tt-bar" style="height:100px; background:#ff6b6b;">1 DTE — Maximum decay</div>
+          <div class="tt-labels">30 days &nbsp;→&nbsp; 14 days &nbsp;→&nbsp; 7 days &nbsp;→&nbsp; Expiry day</div>
+        </div>
+
+        <div class="use-cards">
+          <div class="use-card">
+            <span class="uc-icon">💰</span>
+            <strong>Income Strategy</strong>
+            <p>Short strangles, iron condors, and covered calls all collect Theta. Sellers earn the decay every day without needing the market to move.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">⏳</span>
+            <strong>Holding Period Risk</strong>
+            <p>Long call buyers must predict direction AND timing. Even a correct directional call loses money if the stock moves too slowly — Theta eats the premium.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-sidebar">
+        <div class="quick-facts">
+          <h4>⚡ Quick Facts</h4>
+          <table class="facts-table">
+            <tr><td>Long options</td><td class="accent">Negative Θ</td></tr>
+            <tr><td>Short options</td><td class="accent">Positive Θ</td></tr>
+            <tr><td>Highest at</td><td class="accent">ATM, near expiry</td></tr>
+            <tr><td>Theta/day</td><td class="accent">Annual Θ ÷ 365</td></tr>
+          </table>
+        </div>
+        <div class="nse-example">
+          <h4>🇮🇳 Bank Nifty Example</h4>
+          <p>Bank Nifty weekly ATM option (Wednesday expiry). On Monday with 3 days to go, theta ≈ –₹25/day per lot.</p>
+          <p>By Tuesday: theta ≈ –₹50/day<br>
+          By Wednesday AM: theta ≈ –₹120/day</p>
+          <p>Option sellers earn this. Buyers bleed it — even if Bank Nifty stays flat.</p>
+        </div>
+        <div class="risk-alert">
+          <h4>⚠️ Key Risk</h4>
+          <p>Theta sellers are short gamma. The theta income can be wiped out instantly by a large gap move. Always know your gamma exposure when selling premium.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       VEGA
+  ══════════════════════════════════════ -->
+  <section class="greek-section" id="vega">
+    <div class="gs-header">
+      <div class="gs-symbol vega-color">ν</div>
+      <div>
+        <h2 class="gs-name">VEGA — The God of Volatility</h2>
+        <p class="gs-tagline">How much does my option move when Implied Volatility changes?</p>
+      </div>
+    </div>
+
+    <div class="gs-grid">
+      <div class="gs-main">
+        <h3>What is Vega?</h3>
+        <p>Vega (ν) measures <strong>how much your option's price changes when Implied Volatility (IV) moves by 1%</strong>. Vega is unique — it affects your P&L even when the underlying doesn't move at all.</p>
+        <p class="note">Note: Vega is not actually a Greek letter — but it is universally used in options trading.</p>
+
+        <div class="formula-box">
+          <span class="formula-label">MATHEMATICAL DEFINITION</span>
+          <div class="formula">ν = ∂V / ∂σ</div>
+          <div class="formula">ν = S × √T × N'(d₁)</div>
+          <div class="formula-explain">Divide by 100 to get the value change per 1% IV move</div>
+        </div>
+
+        <div class="use-cards">
+          <div class="use-card">
+            <span class="uc-icon">📈</span>
+            <strong>IV Expansion (Pre-Earnings)</strong>
+            <p>Before a results announcement or RBI policy, IV rises. Long options gain value even if the stock doesn't move — purely from vega.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">📉</span>
+            <strong>IV Crush (Post-Event)</strong>
+            <p>After results, IV collapses. Even if you guessed the direction right, your long option can lose money because IV dropped 20 points — vega destroyed the gain.</p>
+          </div>
+        </div>
+
+        <div class="case-study-box">
+          <h4>📰 Case Study: XIV Volatility Collapse (Feb 2018 — "Volmageddon")</h4>
+          <p>On Feb 5, 2018, the VIX doubled from 17 to 37 in a single day. The XIV ETN (short volatility product) collapsed from $99 to under $5 overnight — a 96% loss — and was terminated.</p>
+          <p><strong>What happened in Greek terms:</strong> XIV was massively short vega. Each 1% rise in VIX caused escalating losses. The product's rebalancing mechanics amplified the losses in a self-reinforcing spiral.</p>
+          <p><strong>Key lesson:</strong> Vega limits must be stress-tested for extreme scenarios. Volatility can go far beyond "normal" levels.</p>
+        </div>
+      </div>
+
+      <div class="gs-sidebar">
+        <div class="quick-facts">
+          <h4>⚡ Quick Facts</h4>
+          <table class="facts-table">
+            <tr><td>Long options</td><td class="accent">+Vega</td></tr>
+            <tr><td>Short options</td><td class="accent">-Vega</td></tr>
+            <tr><td>Highest at</td><td class="accent">ATM, long-dated</td></tr>
+            <tr><td>Per 1% IV move</td><td class="accent">₹Vega change</td></tr>
+          </table>
+        </div>
+        <div class="nse-example">
+          <h4>🇮🇳 NSE Earnings Example</h4>
+          <p>Infosys results tomorrow. IV is at 35%. You buy an ATM call with Vega = 11.</p>
+          <p>Pre-results, IV rises to 45% (+10 vol points).</p>
+          <p>Gain from IV alone:<br>
+          10 × 11 = <span class="profit">₹110 per unit</span><br>
+          × 65 lots = <span class="profit">₹7,150 profit</span></p>
+          <p>After results, IV crashes to 20% — IV crush wipes out all gains.</p>
+        </div>
+        <div class="risk-alert">
+          <h4>⚠️ Key Risk</h4>
+          <p>Buying options before events at elevated IV is dangerous — you pay high premium, and if the stock moves less than expected, IV collapses and you lose even if direction was right.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       RHO
+  ══════════════════════════════════════ -->
+  <section class="greek-section" id="rho">
+    <div class="gs-header">
+      <div class="gs-symbol rho-color">ρ</div>
+      <div>
+        <h2 class="gs-name">RHO — The God of Interest Rates</h2>
+        <p class="gs-tagline">How does my option price change when interest rates change?</p>
+      </div>
+    </div>
+
+    <div class="gs-grid">
+      <div class="gs-main">
+        <h3>What is Rho?</h3>
+        <p>Rho (ρ) measures <strong>how much your option price changes when the risk-free interest rate changes by 1%</strong>. Of all the Greeks, Rho has the smallest day-to-day impact for short-dated options — but it becomes significant for LEAPS (long-dated options).</p>
+
+        <div class="formula-box">
+          <span class="formula-label">MATHEMATICAL DEFINITION</span>
+          <div class="formula">ρ = ∂V / ∂r</div>
+          <div class="formula">ρ (Call) = K × T × e<sup>–rT</sup> × N(d₂)</div>
+          <div class="formula">ρ (Put) = –K × T × e<sup>–rT</sup> × N(–d₂)</div>
+        </div>
+
+        <div class="use-cards">
+          <div class="use-card">
+            <span class="uc-icon">📈</span>
+            <strong>Call Options</strong>
+            <p>Positive Rho — call options benefit when rates rise. Higher rates make the present value of the strike cheaper, making calls more valuable.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">📉</span>
+            <strong>Put Options</strong>
+            <p>Negative Rho — put options are hurt when rates rise. The put's present value advantage decreases as rates go up.</p>
+          </div>
+          <div class="use-card">
+            <span class="uc-icon">📅</span>
+            <strong>LEAPS (Long-Dated)</strong>
+            <p>For options with 1+ year to expiry, Rho can be as important as Vega. A 1% RBI rate change can meaningfully impact long-dated option values.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-sidebar">
+        <div class="quick-facts">
+          <h4>⚡ Quick Facts</h4>
+          <table class="facts-table">
+            <tr><td>Calls</td><td class="accent">Positive ρ</td></tr>
+            <tr><td>Puts</td><td class="accent">Negative ρ</td></tr>
+            <tr><td>Impact</td><td class="accent">Low for weekly</td></tr>
+            <tr><td>Important for</td><td class="accent">LEAPS (1yr+)</td></tr>
+          </table>
+        </div>
+        <div class="nse-example">
+          <h4>🇮🇳 RBI Example</h4>
+          <p>Current RBI repo rate: 5.28%.<br>
+          Nifty 3-month ATM call, Rho ≈ 0.15.</p>
+          <p>If RBI hikes rate by 50 bps (0.50%):</p>
+          <p>Call gains ≈ 0.15 × 0.50 = <span class="profit">₹0.075 per unit</span></p>
+          <p>Small for weekly options. But for a 12-month call, Rho ≈ 5.0 — that's a <span class="accent">₹2.50/unit</span> move.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════
+       PORTFOLIO AGGREGATION
+  ══════════════════════════════════════ -->
+  <section class="greek-section" id="portfolio">
+    <div class="gs-header">
+      <div class="gs-symbol port-color">Σ</div>
+      <div>
+        <h2 class="gs-name">PORTFOLIO GREEKS — Managing the Full Picture</h2>
+        <p class="gs-tagline">Individual Greeks add up — and that sum is what really matters.</p>
+      </div>
+    </div>
+
+    <div class="gs-main-full">
+      <h3>How Portfolio Greeks Work</h3>
+      <p>When you hold multiple options positions, you don't look at Greeks one position at a time. You <strong>aggregate</strong> them to see your total risk exposure.</p>
+
+      <div class="formula-box">
+        <span class="formula-label">AGGREGATION FORMULAS</span>
+        <div class="formula">Portfolio Delta = Σ (Position Size × Individual Delta)</div>
+        <div class="formula">Portfolio Gamma = Σ (Position Size × Individual Gamma)</div>
+        <div class="formula">Portfolio Theta = Σ (Position Size × Individual Theta)</div>
+        <div class="formula">Portfolio Vega  = Σ (Position Size × Individual Vega)</div>
+        <div class="formula-explain">Position Size = Number of contracts × Lot Size</div>
+      </div>
+
+      <h3>Dollar Greeks — Seeing Risk in Rupee Terms</h3>
+      <div class="formula-box">
+        <div class="formula">Dollar Delta = Delta × Underlying Price × Lot Size × Contracts</div>
+        <div class="formula">Dollar Gamma = Gamma × Underlying Price² × Lot Size × 0.01</div>
+        <div class="formula">Dollar Theta = Theta × Lot Size × Contracts</div>
+        <div class="formula-explain">Dollar Greeks show your risk in actual money terms, not abstract Greek values</div>
+      </div>
+
+      <h3>Risk Limit Framework</h3>
+      <p>Professional traders define hard limits for each Greek. Your dashboard alerts you when you approach these limits.</p>
+      <div class="limits-table-wrap">
+        <table class="limits-table">
+          <thead>
+            <tr><th>Greek</th><th>Normal Zone</th><th>Caution Zone</th><th>Breach</th><th>Action if Breached</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Portfolio Delta</td>
+              <td class="green-cell">0 – 70% of limit</td>
+              <td class="amber-cell">70–90%</td>
+              <td class="red-cell">&gt;100</td>
+              <td>Sell futures / Buy opposite options</td>
+            </tr>
+            <tr>
+              <td>Portfolio Gamma</td>
+              <td class="green-cell">0 – 70% of limit</td>
+              <td class="amber-cell">70–90%</td>
+              <td class="red-cell">&gt;20</td>
+              <td>Reduce short near-ATM positions</td>
+            </tr>
+            <tr>
+              <td>Portfolio Theta</td>
+              <td class="green-cell">Positive</td>
+              <td class="amber-cell">–₹500/day</td>
+              <td class="red-cell">&lt;–₹1,000/day</td>
+              <td>Rebalance premium exposure</td>
+            </tr>
+            <tr>
+              <td>Portfolio Vega</td>
+              <td class="green-cell">0 – 70% of limit</td>
+              <td class="amber-cell">70–90%</td>
+              <td class="red-cell">&gt;500</td>
+              <td>Cut long vol exposure before event</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="next-steps">
+        <h3>Ready to Calculate?</h3>
+        <p>Now that you understand all five Greeks, use the tools below to see them in action.</p>
+        <div class="ns-btns">
+          <a href="/calculator" class="btn btn-primary">⚡ Open BSM Calculator</a>
+          <a href="/scenarios" class="btn btn-secondary">🌩 Run Stress Scenarios</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
