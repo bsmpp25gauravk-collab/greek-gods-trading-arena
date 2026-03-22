@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Portfolio Dashboard — Greek Gods Trading Arena{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <p class="page-eyebrow">📊 Multi-Position Portfolio Aggregation</p>
+    <h1 class="page-title">Portfolio <span class="accent">Dashboard</span></h1>
+    <p class="page-subtitle">Enter up to 6 positions — see combined Greeks, risk gauges, and recommendations in real time.</p>
+  </div>
+</div>
+
+<div class="container port-page">
+
+  {# ── RISK GAUGES (only after form submit) ── #}
+  {% if gauges %}
+  <div class="gauges-strip">
+    <div class="gauges-label">⚡ LIVE RISK EXPOSURE</div>
+    <div class="gauges-row">
+
+      {% for key, g in gauges.items() %}
+      <div class="gauge-box gauge-{{ g.zone }}">
+        <div class="gauge-header">
+          <span class="gauge-symbol">
+            {% if key == 'delta' %}Δ{% elif key == 'gamma' %}Γ{% elif key == 'vega' %}ν{% else %}Θ{% endif %}
+          </span>
+          <span class="gauge-name">{{ key | upper }}</span>
+          <span class="gauge-zone-badge">{{ g.zone | upper }}</span>
+        </div>
+
+        {# Percentage bar #}
+        <div class="gauge-pct-num">{{ g.pct }}%</div>
+        <div class="gauge-bar-wrap">
+          <div class="gauge-bar-track">
+            <div class="gauge-bar-fill" style="width: {{ [g.pct, 100] | min }}%;"></div>
+            <div class="gauge-mark-70"></div>
+            <div class="gauge-mark-100"></div>
+          </div>
+        </div>
+
+        <div class="gauge-detail">
+          <span class="gauge-val">{{ g.value }}</span>
+          <span class="gauge-limit">/ ±{{ g.limit }}</span>
+        </div>
+        <div class="gauge-caption">of limit used</div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="port-layout">
+
+    {# ── LEFT: INPUT FORM ── #}
+    <div class="port-form-card">
+      <h2 class="card-title">📥 Position Inputs</h2>
+
+      <form method="POST" action="/portfolio">
+        <div class="global-inputs">
+          <div class="form-group">
+            <label>Nifty Spot Price (₹)</label>
+            <input type="number" name="spot" value="{{ spot_default }}" step="1" class="form-input" required />
+          </div>
+          <div class="form-group">
+            <label>Risk-Free Rate (%)</label>
+            <input type="number" name="rate" value="{{ rate_default }}" step="0.01" class="form-input" required />
+          </div>
+        </div>
+
+        <div class="positions-label">Positions (negative lots = short)</div>
+
+        {# 6 position rows #}
+        {% set preload_data = preloaded if not positions else positions %}
+        {% for i in range(6) %}
+        {% set p = preload_data[i] if i < preload_data|length else none %}
+        <div class="pos-row {% if p %}has-data{% endif %}" id="pos-row-{{ i }}">
+          <div class="pos-row-num">{{ i + 1 }}</div>
+          <div class="pos-row-fields">
+            <input type="text"   name="name_{{ i }}"     value="{{ p.name if p else '' }}"      placeholder="e.g. Nifty 24500 CE" class="form-input pi-name" />
+            <select              name="type_{{ i }}"                                              class="form-input pi-type">
+              <option value="call" {{ 'selected' if p and p.type == 'call' else '' }}>Call CE</option>
+              <option value="put"  {{ 'selected' if p and p.type == 'put'  else '' }}>Put PE</option>
+            </select>
+            <input type="number" name="strike_{{ i }}"   value="{{ p.strike if p else '' }}"    placeholder="Strike" class="form-input pi-strike" step="50" />
+            <input type="number" name="iv_{{ i }}"       value="{{ p.iv if p else '' }}"        placeholder="IV %" class="form-input pi-iv"     step="0.5" />
+            <input type="number" name="days_{{ i }}"     value="{{ p.days if p else '' }}"      placeholder="DTE" class="form-input pi-dte"    step="1" />
+            <input type="number" name="lots_{{ i }}"     value="{{ p.lots if p else '' }}"      placeholder="Lots" class="form-input pi-lots"  />
+            <input type="number" name="lot_size_{{ i }}" value="{{ p.lot_size if p else 65 }}"  placeholder="Lot sz" class="form-input pi-lotsize" />
+          </div>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary btn-full">📊 Calculate Portfolio Greeks</button>
+      </form>
+
+      <div class="field-legend">
+        <span>Name</span><span>Type</span><span>Strike</span><span>IV%</span>
+        <span>DTE</span><span>Lots</span><span>Lot Sz</span>
+      </div>
+    </div>
+
+    {# ── RIGHT: RESULTS ── #}
+    <div class="port-results-col">
+
+      {% if portfolio %}
+      {# Portfolio summary numbers #}
+      <div class="port-summary-card">
+        <h2 class="card-title">📈 Portfolio Greeks</h2>
+        <div class="port-greeks-grid">
+          <div class="pg-item delta-bg">
+            <span class="pg-sym">Δ</span>
+            <span class="pg-label">Portfolio Delta</span>
+            <span class="pg-val {{ 'pos' if portfolio.delta > 0 else 'neg' }}">{{ portfolio.delta }}</span>
+          </div>
+          <div class="pg-item gamma-bg">
+            <span class="pg-sym">Γ</span>
+            <span class="pg-label">Portfolio Gamma</span>
+            <span class="pg-val">{{ portfolio.gamma }}</span>
+          </div>
+          <div class="pg-item theta-bg">
+            <span class="pg-sym">Θ</span>
+            <span class="pg-label">Daily Theta (₹)</span>
+            <span class="pg-val {{ 'pos' if portfolio.theta > 0 else 'neg' }}">{{ portfolio.theta }}</span>
+          </div>
+          <div class="pg-item vega-bg">
+            <span class="pg-sym">ν</span>
+            <span class="pg-label">Portfolio Vega (₹)</span>
+            <span class="pg-val {{ 'pos' if portfolio.vega > 0 else 'neg' }}">{{ portfolio.vega }}</span>
+          </div>
+          <div class="pg-item dollar-bg" style="grid-column: 1 / -1;">
+            <span class="pg-sym">$</span>
+            <span class="pg-label">Dollar Delta (₹ equivalent exposure)</span>
+            <span class="pg-val">{{ "{:,.0f}".format(portfolio.dollar_delta) }}</span>
+          </div>
+        </div>
+      </div>
+
+      {# Recommendations #}
+      <div class="recs-card">
+        <h3 class="recs-title">🧠 Recommendation Engine</h3>
+        {% for rec in recs %}
+        <div class="rec-item {{ 'rec-breach' if '🔴' in rec else 'rec-caution' if '🟡' in rec else 'rec-ok' }}">
+          {{ rec }}
+        </div>
+        {% endfor %}
+      </div>
+
+      {# Position breakdown table #}
+      {% if positions %}
+      <div class="breakdown-card">
+        <h3 class="card-title" style="font-size:.9rem;">🔬 Position Breakdown</h3>
+        <div class="breakdown-scroll">
+          <table class="breakdown-table">
+            <thead>
+              <tr>
+                <th>Position</th><th>Type</th><th>Lots</th>
+                <th>Price</th><th>Δ (pos)</th><th>Γ (pos)</th>
+                <th>Θ (pos)</th><th>ν (pos)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in positions %}
+              <tr>
+                <td>{{ p.name }}</td>
+                <td><span class="type-badge {{ p.type }}">{{ p.type | upper }}</span></td>
+                <td class="{{ 'pos' if p.lots > 0 else 'neg' }}">{{ p.lots }}</td>
+                <td>₹{{ p.price }}</td>
+                <td class="{{ 'pos' if p.p_delta > 0 else 'neg' }}">{{ p.p_delta }}</td>
+                <td>{{ p.p_gamma }}</td>
+                <td class="{{ 'pos' if p.p_theta > 0 else 'neg' }}">{{ p.p_theta }}</td>
+                <td class="{{ 'pos' if p.p_vega > 0 else 'neg' }}">{{ p.p_vega }}</td>
+              </tr>
+              {% endfor %}
+              <tr class="totals-row">
+                <td colspan="4"><strong>PORTFOLIO TOTAL</strong></td>
+                <td class="{{ 'pos' if portfolio.delta > 0 else 'neg' }}"><strong>{{ portfolio.delta }}</strong></td>
+                <td><strong>{{ portfolio.gamma }}</strong></td>
+                <td class="{{ 'pos' if portfolio.theta > 0 else 'neg' }}"><strong>{{ portfolio.theta }}</strong></td>
+                <td class="{{ 'pos' if portfolio.vega > 0 else 'neg' }}"><strong>{{ portfolio.vega }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      {% else %}
+      <div class="empty-state">
+        <div class="es-icon">📊</div>
+        <p>Fill in the positions on the left and click <strong>Calculate Portfolio Greeks</strong>.</p>
+        <p class="es-hint">The form is pre-loaded with the 4-position Nifty book from the Excel prototype. Just hit Calculate to see it in action.</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  {# Limits reference #}
+  <div class="limits-ref">
+    <h3>⚖️ Desk Risk Limits (Simulation)</h3>
+    <div class="limits-ref-row">
+      <div class="lref">Δ Delta limit: <strong>±{{ limits.delta }}</strong></div>
+      <div class="lref">Γ Gamma limit: <strong>±{{ limits.gamma }}</strong> (×10³)</div>
+      <div class="lref">ν Vega limit: <strong>±₹{{ limits.vega }}</strong></div>
+      <div class="lref">Θ Theta limit: <strong>±₹{{ limits.theta }}/day</strong></div>
+    </div>
+    <p class="limits-note">Yellow = 70–99% of limit used. Red = 100%+ breached.</p>
+  </div>
+
+</div>
+{% endblock %}
