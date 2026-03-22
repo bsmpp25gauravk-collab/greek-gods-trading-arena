@@ -1,6 +1,24 @@
 from flask import Flask, render_template, request, jsonify
 import math
-from scipy.stats import norm
+
+# ─────────────────────────────────────────────
+#  NORMAL DISTRIBUTION — Pure Python (no scipy)
+# ─────────────────────────────────────────────
+
+def norm_cdf(x):
+    """Cumulative normal distribution — replaces scipy.stats.norm.cdf"""
+    return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
+
+def norm_pdf(x):
+    """Normal probability density — replaces scipy.stats.norm.pdf"""
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+class norm:
+    """Drop-in replacement for scipy.stats.norm"""
+    @staticmethod
+    def cdf(x): return norm_cdf(x)
+    @staticmethod
+    def pdf(x): return norm_pdf(x)
 
 app = Flask(__name__)
 
