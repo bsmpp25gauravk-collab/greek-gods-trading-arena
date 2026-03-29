@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Scenario Engine — Greek Gods Trading Arena{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <p class="page-eyebrow">🌩 Stress Test</p>
+    <h1 class="page-title">Scenario <span class="accent">Engine</span></h1>
+    <p class="page-subtitle">One position, six market shocks — compared side by side in a single table.</p>
+  </div>
+</div>
+<div class="container scenario-page">
+
+  <div class="scenario-form-card">
+    <h2 class="card-title">📥 Enter Your Position</h2>
+    <form method="POST" action="/scenarios" autocomplete="off">
+      <div class="form-grid">
+        <div class="form-group"><label>Spot Price (₹)</label><input type="number" name="spot" value="{{ form.spot if form.spot else '' }}" step="1" class="form-input" placeholder="e.g. 23750" /></div>
+        <div class="form-group"><label>Strike Price (₹)</label><input type="number" name="strike" value="{{ form.strike if form.strike else '' }}" step="50" class="form-input" placeholder="e.g. 23750" /></div>
+        <div class="form-group"><label>Days to Expiry</label><input type="number" name="days" value="{{ form.days if form.days else '' }}" step="1" min="1" class="form-input" placeholder="e.g. 5" /></div>
+        <div class="form-group"><label>Risk-Free Rate (%)</label><input type="number" name="rate" value="{{ form.rate if form.rate else '' }}" step="0.01" class="form-input" placeholder="e.g. 5.28" /></div>
+        <div class="form-group"><label>Implied Volatility (%)</label><input type="number" name="iv" value="{{ form.iv if form.iv else '' }}" step="0.1" class="form-input" placeholder="e.g. 22.5" /></div>
+        <div class="form-group"><label>Option Type</label>
+          <select name="option_type" class="form-input">
+            <option value="call" {{ 'selected' if form.option_type=='call' }}>Call (CE)</option>
+            <option value="put"  {{ 'selected' if form.option_type=='put'  }}>Put (PE)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Lot Size</label><input type="number" name="lot_size" value="{{ form.lot_size or 65 }}" class="form-input" /></div>
+        <div class="form-group"><label>Contracts</label><input type="number" name="contracts" value="{{ form.contracts or 1 }}" class="form-input" /></div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top:1.25rem">🌩 Run Scenarios</button>
+    </form>
+  </div>
+
+  {% if results %}
+  <div class="scenario-table-wrap">
+    <h2 class="results-title">📊 Scenario Comparison</h2>
+    <div class="sc-table-scroll">
+      <table class="sc-compare-table">
+        <thead>
+          <tr>
+            <th class="sc-row-label">Variable</th>
+            {% for r in results %}
+            <th class="sc-col-header {% if r.pnl > 0 %}col-profit{% elif r.pnl < 0 %}col-loss{% else %}col-neutral{% endif %}">
+              <div class="sc-col-name">{{ r.label }}</div>
+              <div class="sc-col-shocks">
+                {% if r.price_shock != 0 %}Spot {% if r.price_shock > 0 %}+{% endif %}{{ r.price_shock }}%{% endif %}
+                {% if r.iv_shock != 0 %} &nbsp;IV {% if r.iv_shock > 0 %}+{% endif %}{{ r.iv_shock }}%{% endif %}
+                {% if r.price_shock == 0 and r.iv_shock == 0 %}No change{% endif %}
+              </div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="sc-section-hdr"><td colspan="{{ results|length + 1 }}">MARKET CONDITIONS</td></tr>
+          <tr>
+            <td class="sc-row-label">New Spot (₹)</td>
+            {% for r in results %}<td class="sc-cell">{{ "{:,.0f}".format(r.new_spot) }}</td>{% endfor %}
+          </tr>
+          <tr>
+            <td class="sc-row-label">New IV (%)</td>
+            {% for r in results %}<td class="sc-cell">{{ r.new_iv }}%</td>{% endfor %}
+          </tr>
+
+          <tr class="sc-section-hdr"><td colspan="{{ results|length + 1 }}">OPTION PRICE</td></tr>
+          <tr>
+            <td class="sc-row-label">Option Price (₹)</td>
+            {% for r in results %}<td class="sc-cell">{{ r.price }}</td>{% endfor %}
+          </tr>
+          <tr class="sc-highlight">
+            <td class="sc-row-label">Est. P&L (₹)</td>
+            {% for r in results %}
+            <td class="sc-cell sc-pnl {% if r.pnl > 0 %}pnl-pos{% elif r.pnl < 0 %}pnl-neg{% endif %}">
+              {% if r.pnl >= 0 %}+{% endif %}{{ "{:,.0f}".format(r.pnl) }}
+            </td>
+            {% endfor %}
+          </tr>
+
+          <tr class="sc-section-hdr"><td colspan="{{ results|length + 1 }}">GREEKS AT NEW STATE</td></tr>
+          <tr>
+            <td class="sc-row-label">Δ Delta</td>
+            {% for r in results %}<td class="sc-cell {% if r.delta > 0 %}pos{% elif r.delta < 0 %}neg{% endif %}">{{ r.delta }}</td>{% endfor %}
+          </tr>
+          <tr>
+            <td class="sc-row-label">Δ Port Delta</td>
+            {% for r in results %}<td class="sc-cell {% if r.port_delta > 0 %}pos{% elif r.port_delta < 0 %}neg{% endif %}">{{ r.port_delta }}</td>{% endfor %}
+          </tr>
+          <tr>
+            <td class="sc-row-label">Γ Gamma</td>
+            {% for r in results %}<td class="sc-cell">{{ r.gamma }}</td>{% endfor %}
+          </tr>
+          <tr>
+            <td class="sc-row-label">Θ Theta/day</td>
+            {% for r in results %}<td class="sc-cell neg">{{ r.theta }}</td>{% endfor %}
+          </tr>
+          <tr>
+            <td class="sc-row-label">ν Vega/1%IV</td>
+            {% for r in results %}<td class="sc-cell">{{ r.vega }}</td>{% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sc-guide">
+      <h3>🧠 Reading the Table</h3>
+      <div class="sc-guide-grid">
+        <div><strong>Base:</strong> Reference — your current position value.</div>
+        <div><strong>Mild Drop:</strong> Tests Delta. Watch how Port Delta shifts with spot.</div>
+        <div><strong>Crash:</strong> Delta + Gamma + Vega all active simultaneously.</div>
+        <div><strong>Vol Spike:</strong> Pure vega test — spot unchanged, only IV moved.</div>
+        <div><strong>Rally:</strong> Long calls profit. Short calls hurt. Direction matters.</div>
+        <div><strong>Black Swan:</strong> Maximum stress. −10% spot + +20% IV together.</div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state" style="margin-top:2rem">
+    <div class="es-icon">🌩</div>
+    <p>Fill in your position above and click <strong>Run Scenarios</strong>.</p>
+    <p class="es-hint">Results appear as a comparison table — all 6 scenarios side by side.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
