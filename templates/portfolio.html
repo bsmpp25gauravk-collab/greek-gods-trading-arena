@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Portfolio Dashboard — Greek Gods Trading Arena{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <p class="page-eyebrow">📊 Multi-Position Aggregation</p>
+    <h1 class="page-title">Portfolio <span class="accent">Dashboard</span></h1>
+    <p class="page-subtitle">Add positions one by one — see combined Greeks, risk gauges, and recommendations below.</p>
+  </div>
+</div>
+
+<div class="container port-page-v2">
+
+  <!-- INPUT CARD -->
+  <div class="port-input-card">
+    <h2 class="card-title">📥 Position Inputs</h2>
+    <form method="POST" action="/portfolio" id="port-form" autocomplete="off">
+
+      <div class="global-inputs" style="margin-bottom:1.25rem">
+        <div class="form-group">
+          <label>Spot Price (₹) <span class="form-hint">Current index level</span></label>
+          <input type="number" name="spot" id="spot-input" value="" step="1" class="form-input" placeholder="e.g. 23750" />
+        </div>
+        <div class="form-group">
+          <label>Risk-Free Rate (%) <span class="form-hint">e.g. 5.28</span></label>
+          <input type="number" name="rate" value="5.28" step="0.01" class="form-input" />
+        </div>
+      </div>
+
+      <!-- Column headers -->
+      <div class="pos-col-headers">
+        <div style="width:140px">Position Name</div>
+        <div>CE/PE</div>
+        <div>Strike (₹)</div>
+        <div>IV (%)</div>
+        <div>DTE</div>
+        <div>Lots (+/−)</div>
+        <div>Lot Size</div>
+        <div style="width:32px"></div>
+      </div>
+
+      <!-- Dynamic position rows -->
+      <div id="pos-rows"></div>
+
+      <button type="button" class="btn btn-secondary" onclick="addRow()" style="margin:.75rem 0 1.25rem">+ Add Position</button>
+      <button type="submit" class="btn btn-primary btn-full">📊 Calculate Portfolio Greeks</button>
+    </form>
+  </div>
+
+  <!-- OUTPUT: GAUGES + RESULTS BELOW -->
+  {% if gauges %}
+  <div class="gauges-strip" style="margin-top:2rem">
+    <div class="gauges-label">⚡ LIVE RISK EXPOSURE</div>
+    <div class="gauges-row">
+      {% for key, g in gauges.items() %}
+      <div class="gauge-box gauge-{{ g.zone }}">
+        <div class="gauge-header">
+          <span class="gauge-symbol">{% if key=='delta' %}Δ{% elif key=='gamma' %}Γ{% elif key=='vega' %}ν{% else %}Θ{% endif %}</span>
+          <span class="gauge-name">{{ key|upper }}</span>
+          <span class="gauge-zone-badge">{{ g.zone|upper }}</span>
+        </div>
+        <div class="gauge-pct-num">{{ g.pct }}%</div>
+        <div class="gauge-bar-wrap">
+          <div class="gauge-bar-track">
+            <div class="gauge-bar-fill" style="width:{{ [g.pct,100]|min }}%"></div>
+            <div class="gauge-mark-70"></div><div class="gauge-mark-100"></div>
+          </div>
+        </div>
+        <div class="gauge-detail"><span class="gauge-val">{{ g.value }}</span><span class="gauge-limit">/ ±{{ g.limit }}</span></div>
+        <div class="gauge-caption">of limit used</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Portfolio summary -->
+  <div class="port-summary-card" style="margin-top:1.5rem">
+    <h2 class="card-title">📈 Portfolio Greeks</h2>
+    <div class="port-greeks-grid">
+      <div class="pg-item delta-bg"><span class="pg-sym">Δ</span><span class="pg-label">Portfolio Delta</span><span class="pg-val {{ 'pos' if portfolio.delta>0 else 'neg' }}">{{ portfolio.delta }}</span></div>
+      <div class="pg-item gamma-bg"><span class="pg-sym">Γ</span><span class="pg-label">Portfolio Gamma</span><span class="pg-val">{{ portfolio.gamma }}</span></div>
+      <div class="pg-item theta-bg"><span class="pg-sym">Θ</span><span class="pg-label">Daily Theta (₹)</span><span class="pg-val {{ 'pos' if portfolio.theta>0 else 'neg' }}">{{ portfolio.theta }}</span></div>
+      <div class="pg-item vega-bg"><span class="pg-sym">ν</span><span class="pg-label">Portfolio Vega (₹)</span><span class="pg-val {{ 'pos' if portfolio.vega>0 else 'neg' }}">{{ portfolio.vega }}</span></div>
+      <div class="pg-item dollar-bg" style="grid-column:1/-1"><span class="pg-sym">₹</span><span class="pg-label">Dollar Delta (equivalent rupee exposure)</span><span class="pg-val">₹{{ "{:,.0f}".format(portfolio.dollar_delta) }}</span></div>
+    </div>
+  </div>
+
+  <!-- Recommendations -->
+  <div class="recs-card" style="margin-top:1.5rem">
+    <h3 class="recs-title">🧠 Recommendation Engine</h3>
+    {% for rec in recs %}
+    <div class="rec-item {{ 'rec-breach' if '🔴' in rec else 'rec-caution' if '🟡' in rec else 'rec-ok' }}">{{ rec }}</div>
+    {% endfor %}
+  </div>
+
+  <!-- Breakdown table -->
+  {% if positions %}
+  <div class="breakdown-card" style="margin-top:1.5rem">
+    <h3 class="card-title" style="font-size:.9rem">🔬 Position Breakdown</h3>
+    <div class="breakdown-scroll">
+      <table class="breakdown-table">
+        <thead><tr><th>Position</th><th>Type</th><th>Lots</th><th>Price</th><th>Δ pos</th><th>Γ pos</th><th>Θ pos</th><th>ν pos</th></tr></thead>
+        <tbody>
+          {% for p in positions %}
+          <tr>
+            <td>{{ p.name }}</td>
+            <td><span class="type-badge {{ p.type }}">{{ p.type|upper }}</span></td>
+            <td class="{{ 'pos' if p.lots>0 else 'neg' }}">{{ p.lots }}</td>
+            <td>₹{{ p.price }}</td>
+            <td class="{{ 'pos' if p.p_delta>0 else 'neg' }}">{{ p.p_delta }}</td>
+            <td>{{ p.p_gamma }}</td>
+            <td class="{{ 'pos' if p.p_theta>0 else 'neg' }}">{{ p.p_theta }}</td>
+            <td class="{{ 'pos' if p.p_vega>0 else 'neg' }}">{{ p.p_vega }}</td>
+          </tr>
+          {% endfor %}
+          <tr class="totals-row">
+            <td colspan="4"><strong>PORTFOLIO TOTAL</strong></td>
+            <td class="{{ 'pos' if portfolio.delta>0 else 'neg' }}"><strong>{{ portfolio.delta }}</strong></td>
+            <td><strong>{{ portfolio.gamma }}</strong></td>
+            <td class="{{ 'pos' if portfolio.theta>0 else 'neg' }}"><strong>{{ portfolio.theta }}</strong></td>
+            <td class="{{ 'pos' if portfolio.vega>0 else 'neg' }}"><strong>{{ portfolio.vega }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="limits-ref" style="margin-top:2rem">
+    <h3>⚖️ Desk Risk Limits (Simulation)</h3>
+    <div class="limits-ref-row">
+      <div class="lref">Δ Delta limit: <strong>±{{ limits.delta }}</strong></div>
+      <div class="lref">Γ Gamma limit: <strong>±{{ limits.gamma }}</strong> (×10³)</div>
+      <div class="lref">ν Vega limit: <strong>±₹{{ limits.vega }}</strong></div>
+      <div class="lref">Θ Theta limit: <strong>±₹{{ limits.theta }}/day</strong></div>
+    </div>
+    <p class="limits-note">Yellow = 70–99% of limit. Red = 100%+ breached. Negative lots = short position.</p>
+  </div>
+</div>
+
+<script>
+let rowCount = 0;
+
+function addRow(data) {
+  const d = data || {};
+  const i = rowCount++;
+  const row = document.createElement('div');
+  row.className = 'pos-row has-data';
+  row.id = 'prow-' + i;
+  row.innerHTML = `
+    <div class="pos-row-fields">
+      <input type="text"   name="name_${i}"     value="${d.name||''}"     placeholder="e.g. Nifty 24000 CE" class="form-input pi-name" />
+      <select              name="type_${i}"                                class="form-input pi-type">
+        <option value="call" ${d.type==='call'?'selected':''}>Call CE</option>
+        <option value="put"  ${d.type==='put' ?'selected':''}>Put PE</option>
+      </select>
+      <input type="number" name="strike_${i}"   value="${d.strike||''}"   placeholder="Strike" class="form-input pi-strike" step="50" />
+      <input type="number" name="iv_${i}"       value="${d.iv||''}"       placeholder="IV %"  class="form-input pi-iv"     step="0.5" />
+      <input type="number" name="days_${i}"     value="${d.days||''}"     placeholder="DTE"   class="form-input pi-dte"    step="1" />
+      <input type="number" name="lots_${i}"     value="${d.lots||''}"     placeholder="+/−"   class="form-input pi-lots" />
+      <input type="number" name="lot_size_${i}" value="${d.lot_size||65}" placeholder="Lot sz" class="form-input pi-lotsize" />
+      <button type="button" class="del-btn" onclick="delRow('prow-${i}')">✕</button>
+    </div>`;
+  document.getElementById('pos-rows').appendChild(row);
+}
+
+function delRow(id) {
+  const el = document.getElementById(id);
+  if(el) el.remove();
+}
+
+// Pre-fill rows from server (after POST with positions)
+{% if positions %}
+{% for p in positions %}
+addRow({ name: "{{ p.name }}", type: "{{ p.type }}", strike: {{ p.strike }}, iv: {{ p.iv }}, days: {{ p.days }}, lots: {{ p.lots }}, lot_size: {{ p.lot_size }} });
+{% endfor %}
+{% else %}
+addRow(); // start with one empty row
+{% endif %}
+</script>
+{% endblock %}

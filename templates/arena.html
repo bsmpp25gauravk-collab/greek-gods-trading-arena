@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% block title %}Arena — Greek Gods Campaign{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <p class="page-eyebrow">🎮 Campaign Mode</p>
+    <h1 class="page-title">Greek Gods <span class="accent">Arena</span></h1>
+    <p class="page-subtitle">Complete each level to unlock the next. Master all 6 Greeks to become a Greek Grandmaster.</p>
+  </div>
+</div>
+
+<div class="container arena-page">
+
+  <!-- XP BAR -->
+  <div class="xp-bar-wrap">
+    <span class="xp-label">Total XP</span>
+    <div class="xp-track"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+    <span class="xp-num" id="xp-num">0 XP</span>
+  </div>
+
+  <!-- LEVEL SELECT SCREEN -->
+  <div id="screen-select">
+    <div class="levels-grid" id="levels-grid"></div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game" style="display:none">
+
+    <div class="game-top-bar">
+      <button class="btn btn-ghost" onclick="backToSelect()" style="font-size:.8rem">← Back</button>
+      <div class="game-level-name" id="gl-name">Level 1</div>
+      <div class="game-score-bar">
+        <span>Score: <strong id="gl-score">100</strong></span>
+        <span style="margin-left:16px">Move: <strong id="gl-move">0/8</strong></span>
+      </div>
+    </div>
+
+    <div class="arena-layout">
+
+      <!-- MARKET PANEL -->
+      <div class="arena-market-card">
+        <div class="arena-card-title">📡 Live Market</div>
+        <div class="market-grid">
+          <div class="mkt-item"><span class="mkt-label">Nifty Spot</span><span class="mkt-val accent" id="g-spot">—</span></div>
+          <div class="mkt-item"><span class="mkt-label">IV (%)</span><span class="mkt-val" id="g-iv">—</span></div>
+          <div class="mkt-item"><span class="mkt-label">DTE</span><span class="mkt-val" id="g-dte">—</span></div>
+          <div class="mkt-item"><span class="mkt-label">Option Price</span><span class="mkt-val" id="g-price">—</span></div>
+        </div>
+        <div class="greeks-panel">
+          <div class="gp-row"><span class="gp-sym delta-color">Δ</span><span class="gp-label">Option Delta</span><span class="gp-val" id="g-delta">—</span></div>
+          <div class="gp-row"><span class="gp-sym gamma-color">Γ</span><span class="gp-label">Gamma</span><span class="gp-val" id="g-gamma">—</span></div>
+          <div class="gp-row"><span class="gp-sym theta-color">Θ</span><span class="gp-label">Theta/day</span><span class="gp-val neg" id="g-theta">—</span></div>
+          <div class="gp-row"><span class="gp-sym vega-color">ν</span><span class="gp-label">Vega/1%IV</span><span class="gp-val" id="g-vega">—</span></div>
+        </div>
+        <div class="position-info">
+          <div class="pi-row"><span>Futures held (Δ)</span><span id="g-futures" class="accent">0</span></div>
+          <div class="pi-row"><span>Greek focus</span><span id="g-greek" class="accent">—</span></div>
+        </div>
+        <div id="mission-box" class="mission-box-inner"></div>
+      </div>
+
+      <!-- DELTA GAUGE -->
+      <div class="arena-gauge-card">
+        <div class="arena-card-title">⚡ Portfolio Delta</div>
+        <div class="delta-display">
+          <div class="delta-big" id="delta-big">—</div>
+          <div class="delta-zone" id="delta-zone">Start the game</div>
+        </div>
+        <div class="delta-meter-wrap">
+          <div class="dm-labels">
+            <span>−100</span>
+            <span id="dm-safe-left">−20</span>
+            <span class="dm-safe">SAFE</span>
+            <span id="dm-safe-right">+20</span>
+            <span>+100</span>
+          </div>
+          <div class="delta-meter">
+            <div class="dm-safe-zone" id="dm-safe-zone-el"></div>
+            <div class="dm-needle" id="dm-needle"></div>
+          </div>
+        </div>
+        <div class="score-block">
+          <div class="score-item"><span class="score-label">Score</span><span class="score-val" id="g-score-big">—</span></div>
+          <div class="score-item"><span class="score-label">Move</span><span class="score-val" id="g-move-big">—</span></div>
+          <div class="score-item"><span class="score-label">Win at</span><span class="score-val" id="g-win-at" style="font-size:.9rem;color:var(--muted)">—</span></div>
+        </div>
+        <div id="action-buttons" style="text-align:center;margin-top:.75rem">
+          <button class="btn btn-primary" id="btn-start" onclick="startGame()" style="width:100%">▶ Start Level</button>
+        </div>
+        <div class="hedge-buttons" id="hedge-buttons" style="display:none">
+          <button class="btn-action-sell" onclick="sendMove('sell_future')">📉 Sell Fut<br><small>−65 Δ</small></button>
+          <button class="btn-action-hold" onclick="sendMove('hold')">⏸ Hold<br><small>No action</small></button>
+          <button class="btn-action-buy"  onclick="sendMove('buy_future')">📈 Buy Fut<br><small>+65 Δ</small></button>
+        </div>
+        <div id="game-over-panel" class="game-over-panel" style="display:none">
+          <div id="go-message"></div>
+          <div style="display:flex;gap:.75rem;margin-top:1rem;justify-content:center;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="startGame()">🔄 Try Again</button>
+            <button class="btn btn-ghost" onclick="backToSelect()">← Levels</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOG -->
+      <div class="arena-log-card">
+        <div class="arena-card-title">📋 Game Log</div>
+        <div class="game-log" id="game-log"><div class="log-empty">Press Start to begin.</div></div>
+      </div>
+
+    </div>
+
+    <div class="level-info-strip" id="level-info-strip"></div>
+  </div>
+
+</div>
+
+<script>
+var LS_KEY = 'ggta_v2';
+
+function getProgress() {
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    var p = raw ? JSON.parse(raw) : null;
+    if (!p || typeof p !== 'object') p = {};
+    if (!p.completed) p.completed = {};
+    if (!p.xp) p.xp = 0;
+    if (!p.badges) p.badges = [];
+    return p;
+  } catch(e) {
+    return {completed:{}, xp:0, badges:[]};
+  }
+}
+
+function saveProgress(p) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch(e) {}
+}
+
+var LEVELS = {
+  1: {name:'Delta Rookie',      greek:'Δ Delta',     color:'#4cba76', badge:'Delta Initiate',    xpReward:100,  mission:'Long 1 lot ATM Call. Keep portfolio delta between −20 and +20 for 8 moves.'},
+  2: {name:'Delta Apprentice',  greek:'Δ Delta',     color:'#3ec9c1', badge:'Delta Master',      xpReward:200,  mission:'2-position book. Keep net delta −50 to +50 for 10 moves.'},
+  3: {name:'Gamma Guardian',    greek:'Γ Gamma',     color:'#d4a017', badge:'Gamma Guardian',    xpReward:300,  mission:'Near-expiry ATM call. Extreme gamma. Keep delta −30 to +30 for 8 moves.'},
+  4: {name:'Theta Harvester',   greek:'Θ Theta',     color:'#e08c3c', badge:'Time Collector',    xpReward:400,  mission:'Short strangle. Collect theta income. Keep delta −60 to +60 for 10 moves.'},
+  5: {name:'Vega Voyager',      greek:'ν Vega',      color:'#7c5cbf', badge:'Vol Navigator',     xpReward:500,  mission:'IV crushing 2% per move. Manage vega. Survive 10 moves with positive P&L.'},
+  6: {name:'Greek Grandmaster', greek:'All Greeks',  color:'#e05252', badge:'Greek God',         xpReward:1000, mission:'CRISIS MODE. Spot gapped, IV spiked, 3 DTE. All Greeks under stress. Survive 12 moves.'}
+};
+
+var currentLevel = 1;
+var gameState = null;
+
+function renderLevelSelect() {
+  var p = getProgress();
+  updateXPBar(p.xp);
+  var grid = document.getElementById('levels-grid');
+  grid.innerHTML = '';
+
+  for (var i = 1; i <= 6; i++) {
+    (function(lvl) {
+      var cfg = LEVELS[lvl];
+      var completed = !!p.completed[lvl];
+      var locked = lvl > 1 && !p.completed[lvl - 1];
+
+      var card = document.createElement('div');
+      card.className = 'lsc ' + (completed ? 'lsc-done' : (locked ? 'lsc-locked' : 'lsc-open'));
+
+      var numDiv = document.createElement('div');
+      numDiv.className = 'lsc-num';
+      numDiv.textContent = '0' + lvl;
+
+      var sym = document.createElement('div');
+      sym.className = 'lsc-sym';
+      sym.style.color = cfg.color;
+      sym.textContent = lvl === 6 ? '⚡' : (lvl === 5 ? 'ν' : (lvl === 4 ? 'Θ' : (lvl === 3 ? 'Γ' : 'Δ')));
+
+      var status = document.createElement('div');
+      status.className = 'lsc-status';
+      status.textContent = completed ? '✅ ' + cfg.badge : (locked ? '🔒 Locked' : '🟢 Available');
+
+      var name = document.createElement('h3');
+      name.className = 'lsc-name';
+      name.textContent = cfg.name;
+
+      var greek = document.createElement('p');
+      greek.className = 'lsc-greek';
+      greek.textContent = cfg.greek;
+
+      var mission = document.createElement('p');
+      mission.className = 'lsc-mission';
+      mission.textContent = cfg.mission;
+
+      var reward = document.createElement('div');
+      reward.className = 'lsc-reward';
+      reward.textContent = 'Reward: +' + cfg.xpReward + ' XP · ' + cfg.badge;
+
+      card.appendChild(numDiv);
+      card.appendChild(sym);
+      card.appendChild(status);
+      card.appendChild(name);
+      card.appendChild(greek);
+      card.appendChild(mission);
+      card.appendChild(reward);
+
+      if (!locked) {
+        var btn = document.createElement('button');
+        btn.className = 'btn lsc-btn';
+        btn.style.borderColor = cfg.color;
+        btn.style.color = cfg.color;
+        btn.textContent = completed ? '🔄 Replay' : '▶ Play';
+        btn.onclick = function() { playLevel(lvl); };
+        card.appendChild(btn);
+      }
+
+      grid.appendChild(card);
+    })(i);
+  }
+}
+
+function playLevel(n) {
+  currentLevel = n;
+  document.getElementById('screen-select').style.display = 'none';
+  document.getElementById('screen-game').style.display   = '';
+  document.getElementById('gl-name').textContent = 'Level ' + n + ': ' + LEVELS[n].name;
+  document.getElementById('g-greek').textContent = LEVELS[n].greek;
+  document.getElementById('action-buttons').style.display     = '';
+  document.getElementById('hedge-buttons').style.display      = 'none';
+  document.getElementById('game-over-panel').style.display    = 'none';
+  document.getElementById('btn-start').disabled               = false;
+  document.getElementById('delta-big').textContent            = '—';
+  document.getElementById('delta-big').className              = 'delta-big';
+  document.getElementById('delta-zone').textContent           = 'Press Start';
+  document.getElementById('delta-zone').className             = 'delta-zone';
+  document.getElementById('game-log').innerHTML               = '<div class="log-empty">Press Start to begin.</div>';
+  document.getElementById('g-score-big').textContent          = '—';
+  document.getElementById('g-move-big').textContent           = '—';
+  document.getElementById('dm-needle').style.left             = '50%';
+
+  var cfg = LEVELS[n];
+  document.getElementById('level-info-strip').innerHTML =
+    '<div class="li-item"><strong>Mission:</strong> ' + cfg.mission + '</div>' +
+    '<div class="li-item"><strong>Reward:</strong> ' + cfg.badge + ' badge + ' + cfg.xpReward + ' XP</div>';
+
+  document.getElementById('mission-box').innerHTML =
+    '<div class="mission-text">' + cfg.mission + '</div>';
+
+  document.getElementById('screen-game').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+async function startGame() {
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('game-over-panel').style.display = 'none';
+  document.getElementById('hedge-buttons').style.display   = 'none';
+  document.getElementById('game-log').innerHTML = '<div class="log-entry">Loading...</div>';
+
+  try {
+    var res = await fetch('/api/arena/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({level: currentLevel})
+    });
+    gameState = await res.json();
+    updateGameUI(gameState);
+    showHedge();
+  } catch(e) {
+    document.getElementById('game-log').innerHTML = '<div class="log-entry" style="color:var(--red)">Error: ' + e.message + '</div>';
+    document.getElementById('btn-start').disabled = false;
+  }
+}
+
+async function sendMove(action) {
+  if (!gameState || gameState.game_over) return;
+  disableHedge();
+  try {
+    var payload = JSON.stringify({
+      level:        gameState.level,
+      spot:         gameState.spot,
+      rate:         gameState.rate,
+      iv:           gameState.iv,
+      days:         gameState.days,
+      futures_held: gameState.futures_held,
+      positions:    gameState.positions,
+      score:        gameState.score,
+      xp:           gameState.xp,
+      move:         gameState.move,
+      max_moves:    gameState.max_moves,
+      win_score:    gameState.win_score,
+      log:          gameState.log,
+      lot_size:     gameState.lot_size,
+      action:       action
+    });
+    var res = await fetch('/api/arena/move', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: payload
+    });
+    gameState = await res.json();
+    updateGameUI(gameState);
+    if (gameState.game_over) showGameOver(gameState);
+    else showHedge();
+  } catch(e) {
+    showHedge();
+  }
+}
+
+function updateGameUI(s) {
+  document.getElementById('g-spot').textContent    = '₹' + s.spot.toLocaleString('en-IN');
+  document.getElementById('g-iv').textContent      = parseFloat(s.iv).toFixed(1) + '%';
+  document.getElementById('g-dte').textContent     = Math.ceil(s.days) + ' days';
+  document.getElementById('g-price').textContent   = '₹' + s.option_price;
+  document.getElementById('g-delta').textContent   = s.delta;
+  document.getElementById('g-gamma').textContent   = s.gamma;
+  document.getElementById('g-theta').textContent   = s.theta;
+  document.getElementById('g-vega').textContent    = s.vega;
+  document.getElementById('g-futures').textContent = s.futures_held;
+  document.getElementById('gl-score').textContent  = s.score;
+  document.getElementById('gl-move').textContent   = s.move + '/' + s.max_moves;
+  document.getElementById('g-score-big').textContent = s.score;
+  document.getElementById('g-move-big').textContent  = s.move + '/' + s.max_moves;
+  document.getElementById('g-win-at').textContent    = (s.win_score || s.cfg && s.cfg.win_score || '—') + '+ to win';
+
+  var cfg  = s.cfg || {};
+  var safe = cfg.delta_safe || 20;
+  var caut = cfg.delta_caution || 50;
+  document.getElementById('dm-safe-left').textContent  = '-' + safe;
+  document.getElementById('dm-safe-right').textContent = '+' + safe;
+
+  var pd   = s.port_delta;
+  var big  = document.getElementById('delta-big');
+  var zone = document.getElementById('delta-zone');
+  big.textContent = (pd >= 0 ? '+' : '') + parseFloat(pd).toFixed(1);
+
+  if (Math.abs(pd) <= safe) {
+    big.className  = 'delta-big delta-safe';
+    zone.textContent = '✅ Safe — within limit';
+    zone.className = 'delta-zone zone-safe';
+  } else if (Math.abs(pd) <= caut) {
+    big.className  = 'delta-big delta-caution';
+    zone.textContent = '🟡 Caution — hedge soon!';
+    zone.className = 'delta-zone zone-caution';
+  } else {
+    big.className  = 'delta-big delta-breach';
+    zone.textContent = '🔴 BREACH — out of limits!';
+    zone.className = 'delta-zone zone-breach';
+  }
+
+  var pct = Math.max(0, Math.min(100, (pd + 100) / 200 * 100));
+  document.getElementById('dm-needle').style.left = pct + '%';
+
+  var szEl = document.getElementById('dm-safe-zone-el');
+  if (szEl) {
+    var safePct = safe / 100 * 100;
+    szEl.style.left  = (50 - safePct / 2) + '%';
+    szEl.style.width = safePct + '%';
+  }
+
+  var log = document.getElementById('game-log');
+  log.innerHTML = '';
+  var entries = s.log ? s.log.slice().reverse().slice(0, 14) : [];
+  for (var i = 0; i < entries.length; i++) {
+    var d = document.createElement('div');
+    d.className = 'log-entry' + (i === 0 ? ' log-latest' : '');
+    d.textContent = entries[i];
+    log.appendChild(d);
+  }
+}
+
+function showGameOver(s) {
+  document.getElementById('hedge-buttons').style.display   = 'none';
+  document.getElementById('game-over-panel').style.display = 'block';
+  var msg = document.getElementById('go-message');
+  var cfg = s.cfg || {};
+
+  if (s.won) {
+    var p = getProgress();
+    p.completed[currentLevel] = true;
+    p.xp = (p.xp || 0) + (cfg.xp_reward || 0);
+    if (cfg.badge && p.badges.indexOf(cfg.badge) === -1) p.badges.push(cfg.badge);
+    saveProgress(p);
+    updateXPBar(p.xp);
+    renderLevelSelect();
+
+    var nextBtn = '';
+    if (currentLevel < 6) {
+      nextBtn = '<button class="btn btn-primary" onclick="playLevel(' + (currentLevel + 1) + ')" style="margin-top:.75rem">Next Level →</button>';
+    } else {
+      nextBtn = '<div style="color:var(--gold);margin-top:.5rem;font-family:var(--font-display)">👑 Greek Grandmaster!</div>';
+    }
+    msg.innerHTML =
+      '<div class="go-win">🏆 Level ' + currentLevel + ' Complete!</div>' +
+      '<div style="font-family:var(--font-mono);font-size:.82rem;margin:.4rem 0">Score: <strong>' + s.score + '</strong> &nbsp;|&nbsp; XP earned: <strong>' + s.xp + '</strong></div>' +
+      '<div class="go-badge">🏅 ' + (cfg.badge || '') + ' badge unlocked!</div>' +
+      nextBtn;
+  } else {
+    msg.innerHTML =
+      '<div class="go-lose">⚠️ Level Failed</div>' +
+      '<div style="font-family:var(--font-mono);font-size:.82rem;margin:.4rem 0">Score: <strong>' + s.score + '</strong> — need <strong>' + (s.win_score || cfg.win_score || '?') + '</strong>+ to pass.</div>' +
+      '<div style="font-family:var(--font-mono);font-size:.72rem;color:var(--muted);margin-top:.4rem">Tip: hedge earlier — act when delta hits caution, not after breach.</div>';
+  }
+}
+
+function showHedge() {
+  document.getElementById('action-buttons').style.display = 'none';
+  document.getElementById('hedge-buttons').style.display  = 'flex';
+  var btns = document.querySelectorAll('#hedge-buttons button');
+  for (var i = 0; i < btns.length; i++) btns[i].disabled = false;
+}
+function disableHedge() {
+  var btns = document.querySelectorAll('#hedge-buttons button');
+  for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+}
+
+function backToSelect() {
+  gameState = null;
+  document.getElementById('screen-game').style.display   = 'none';
+  document.getElementById('screen-select').style.display = '';
+  renderLevelSelect();
+}
+
+function updateXPBar(xp) {
+  var max = 2500;
+  var pct = Math.min(xp / max * 100, 100);
+  document.getElementById('xp-fill').style.width = pct + '%';
+  document.getElementById('xp-num').textContent  = xp + ' XP';
+}
+
+renderLevelSelect();
+</script>
+{% endblock %}

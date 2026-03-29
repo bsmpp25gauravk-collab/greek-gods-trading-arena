@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Greek Gods Trading Arena — Learn Options Greeks{% endblock %}
+{% block content %}
+
+<div class="hero">
+  <div class="hero-inner">
+    <p class="hero-eyebrow">Options Education · Risk Management · Gamified Learning</p>
+    <h1 class="hero-title">Master the <span class="accent">Options Greeks</span></h1>
+    <p class="hero-sub">From Black-Scholes formulas to real portfolio risk management — learn every Greek, stress-test positions, and battle through 6 campaign levels.</p>
+    <div class="hero-btns">
+      <a href="/study" class="btn btn-primary btn-lg">📚 Start Learning</a>
+      <a href="/arena" class="btn btn-secondary btn-lg">🎮 Play Arena</a>
+      <a href="/calculator" class="btn btn-ghost btn-lg">⚡ BSM Calculator</a>
+    </div>
+  </div>
+</div>
+
+<div class="container home-page">
+
+  {# Greek Cards #}
+  <section class="home-section">
+    <h2 class="section-title">The Five Primary Greeks</h2>
+    <div class="greek-cards">
+      <a href="/study#delta" class="gc-card delta-card">
+        <div class="gc-sym">Δ</div>
+        <div class="gc-name">Delta</div>
+        <div class="gc-range">0 to +1 (call) · −1 to 0 (put)</div>
+        <div class="gc-desc">Price sensitivity per ₹1 spot move</div>
+        <div class="gc-arrow">→</div>
+      </a>
+      <a href="/study#gamma" class="gc-card gamma-card">
+        <div class="gc-sym">Γ</div>
+        <div class="gc-name">Gamma</div>
+        <div class="gc-range">Always positive · peaks ATM</div>
+        <div class="gc-desc">Rate of change of Delta</div>
+        <div class="gc-arrow">→</div>
+      </a>
+      <a href="/study#theta" class="gc-card theta-card">
+        <div class="gc-sym">Θ</div>
+        <div class="gc-name">Theta</div>
+        <div class="gc-range">Negative for buyers</div>
+        <div class="gc-desc">Daily time decay in option value</div>
+        <div class="gc-arrow">→</div>
+      </a>
+      <a href="/study#vega" class="gc-card vega-card">
+        <div class="gc-sym">ν</div>
+        <div class="gc-name">Vega</div>
+        <div class="gc-range">Always positive · highest ATM</div>
+        <div class="gc-desc">Sensitivity to 1% IV change</div>
+        <div class="gc-arrow">→</div>
+      </a>
+      <a href="/study#rho" class="gc-card rho-card">
+        <div class="gc-sym">ρ</div>
+        <div class="gc-name">Rho</div>
+        <div class="gc-range">Positive (call) · Negative (put)</div>
+        <div class="gc-desc">Sensitivity to interest rate change</div>
+        <div class="gc-arrow">→</div>
+      </a>
+    </div>
+  </section>
+
+  {# Tools section #}
+  <section class="home-section">
+    <h2 class="section-title">Interactive Tools</h2>
+    <div class="tools-grid">
+      <a href="/calculator" class="tool-card">
+        <div class="tool-icon">⚡</div>
+        <h3>BSM Calculator</h3>
+        <p>Enter any option's details — get full Greeks for both Call and Put simultaneously. Rate and IV entered as percentage (e.g. 5.28%, 22.49%).</p>
+        <span class="tool-link">Open Calculator →</span>
+      </a>
+      <a href="/scenarios" class="tool-card">
+        <div class="tool-icon">🌩</div>
+        <h3>Scenario Engine</h3>
+        <p>Stress-test your position across 6 market scenarios — Base, Mild Drop, Crash, Big Rally, Vol Spike, and Black Swan. All compared side by side.</p>
+        <span class="tool-link">Run Scenarios →</span>
+      </a>
+      <a href="/portfolio" class="tool-card">
+        <div class="tool-icon">📊</div>
+        <h3>Portfolio Dashboard</h3>
+        <p>Add unlimited positions dynamically. See aggregated Greeks, risk gauges, P&L breakdown, and AI-powered recommendations.</p>
+        <span class="tool-link">Open Portfolio →</span>
+      </a>
+    </div>
+  </section>
+
+  {# Campaign levels #}
+  <section class="home-section">
+    <h2 class="section-title">🎮 6-Level Campaign</h2>
+    <p class="section-sub">Complete each level to unlock the next. Progress is saved in your browser.</p>
+    <div class="campaign-grid">
+      {% set levels = [
+        (1,"Delta Rookie","Δ","Long 1 lot ATM Call. Keep delta ±20 for 8 moves.","delta-color"),
+        (2,"Delta Apprentice","Δ","Long 3 lots OTM Call. Bigger position, bigger moves.","delta-color"),
+        (3,"Gamma Guardian","Γ","Short 2 lots ATM Call. Near-expiry gamma is deadly.","gamma-color"),
+        (4,"Theta Harvester","Θ","Short Strangle. Collect theta — but manage delta risk.","theta-color"),
+        (5,"Vega Voyager","ν","Long Straddle on earnings. Time the vol exit perfectly.","vega-color"),
+        (6,"Greek Grandmaster","⚡","Crisis Mode. All Greeks. 6 extreme moves. Survive.","accent"),
+      ] %}
+      {% for num, name, sym, desc, color in levels %}
+      <a href="/arena" class="campaign-card">
+        <div class="cc-num">{{ '%02d'|format(num) }}</div>
+        <div class="cc-sym {{ color }}">{{ sym }}</div>
+        <div class="cc-name">{{ name }}</div>
+        <div class="cc-desc">{{ desc }}</div>
+      </a>
+      {% endfor %}
+    </div>
+    <div style="text-align:center;margin-top:1.5rem;">
+      <a href="/arena" class="btn btn-primary btn-lg">🎮 Enter the Arena</a>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
