@@ -1,112 +1,405 @@
 {% extends "base.html" %}
-{% block title %}BSM Calculator — Greek Gods Trading Arena{% endblock %}
+{% block title %}Options Calculator — Greek Gods Trading Arena{% endblock %}
 {% block content %}
 <div class="page-header">
   <div class="container">
-    <p class="page-eyebrow">⚡ Black-Scholes-Merton Model</p>
-    <h1 class="page-title">Options Greeks <span class="accent">Calculator</span></h1>
-    <p class="page-subtitle">Enter any option details — get Call and Put Greeks instantly. Rate and IV as percentages.</p>
+    <p class="page-eyebrow">⚡ Pricing Models</p>
+    <h1 class="page-title">Options <span class="accent">Calculator</span></h1>
+    <p class="page-subtitle">Three models — Black-Scholes-Merton, Binomial (CRR), and Put-Call Parity. Rate, IV, and Dividend as percentages.</p>
   </div>
 </div>
+
 <div class="container calc-page-v2">
 
-  <div class="calc-input-card">
+  <!-- ── Model Selector Tabs ── -->
+  <div class="model-tabs" style="margin:28px 0 0">
+    <button class="model-tab {% if model=='bsm' or not model %}active{% endif %}"
+            onclick="switchModel('bsm')" id="tab-bsm">
+      <span class="mt-sym">B</span>
+      <span class="mt-label">Black-Scholes-Merton</span>
+      <span class="mt-hint">Continuous, European options</span>
+    </button>
+    <button class="model-tab {% if model=='binomial' %}active{% endif %}"
+            onclick="switchModel('binomial')" id="tab-binomial">
+      <span class="mt-sym">B</span>
+      <span class="mt-label">Binomial (CRR)</span>
+      <span class="mt-hint">Lattice tree, 200 steps</span>
+    </button>
+    <button class="model-tab {% if model=='pcp' %}active{% endif %}"
+            onclick="switchModel('pcp')" id="tab-pcp">
+      <span class="mt-sym">≡</span>
+      <span class="mt-label">Put-Call Parity</span>
+      <span class="mt-hint">Implied price & arbitrage check</span>
+    </button>
+  </div>
+
+  <!-- ── Shared description strip ── -->
+  <div class="model-desc-strip">
+    <div id="desc-bsm"      class="mdesc {% if model=='bsm' or not model %}active{% endif %}">
+      <strong>Black-Scholes-Merton</strong> assumes log-normal price distribution, constant volatility and rates, and continuous dividend yield.
+      Gives closed-form prices and exact Greeks (Δ, Γ, Θ, ν, ρ). Best for European-style index options.
+    </div>
+    <div id="desc-binomial"  class="mdesc {% if model=='binomial' %}active{% endif %}">
+      <strong>Binomial (CRR)</strong> builds a 200-step recombining price tree. Numerically equivalent to BSM in the limit, but flexible enough for American-style early exercise.
+      Greeks are computed via finite differences on the tree.
+    </div>
+    <div id="desc-pcp"       class="mdesc {% if model=='pcp' %}active{% endif %}">
+      <strong>Put-Call Parity:</strong> C − P = Se<sup>−qT</sup> − Ke<sup>−rT</sup>.
+      Enter a known Call or Put market price — get the implied fair value of the other side, plus an arbitrage gap check.
+    </div>
+  </div>
+
+  <!-- ── FORM: BSM / Binomial ── -->
+  <div id="form-bsm-bin" class="calc-input-card {% if model=='pcp' %}hidden{% endif %}">
     <h2 class="card-title">📥 Position Inputs</h2>
     <form method="POST" action="/calculator" autocomplete="off">
-      <div class="calc-form-grid">
+      <input type="hidden" name="model" id="model-field-bsm"
+             value="{{ model if model in ('bsm','binomial') else 'bsm' }}" />
+
+      <!-- Row 1 -->
+      <div class="calc-form-grid-4">
         <div class="form-group">
-          <label>Spot Price (₹) <span class="form-hint">Current index level</span></label>
-          <input type="number" name="spot" value="{{ form.spot if form.spot else '' }}" step="1" class="form-input" placeholder="e.g. 23750" />
+          <label>Spot Price (₹) <span class="form-hint">Index level</span></label>
+          <input type="number" name="spot" value="{{ form.spot or '' }}"
+                 step="1" class="form-input" placeholder="e.g. 23750" />
         </div>
         <div class="form-group">
           <label>Strike Price (₹) <span class="form-hint">Option strike</span></label>
-          <input type="number" name="strike" value="{{ form.strike if form.strike else '' }}" step="50" class="form-input" placeholder="e.g. 23800" />
+          <input type="number" name="strike" value="{{ form.strike or '' }}"
+                 step="50" class="form-input" placeholder="e.g. 23800" />
         </div>
         <div class="form-group">
           <label>Days to Expiry <span class="form-hint">Calendar days</span></label>
-          <input type="number" name="days" value="{{ form.days if form.days else '' }}" step="1" min="1" class="form-input" placeholder="e.g. 5" />
+          <input type="number" name="days" value="{{ form.days or '' }}"
+                 step="1" min="1" class="form-input" placeholder="e.g. 5" />
         </div>
         <div class="form-group">
           <label>Risk-Free Rate (%) <span class="form-hint">e.g. 5.28</span></label>
-          <input type="number" name="rate" value="{{ form.rate if form.rate else '' }}" step="0.01" class="form-input" placeholder="e.g. 5.28" />
+          <input type="number" name="rate" value="{{ form.rate or '' }}"
+                 step="0.01" class="form-input" placeholder="e.g. 5.28" />
         </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="calc-form-grid-4" style="margin-top:14px">
         <div class="form-group">
           <label>Implied Volatility (%) <span class="form-hint">e.g. 22.5</span></label>
-          <input type="number" name="iv" value="{{ form.iv if form.iv else '' }}" step="0.1" class="form-input" placeholder="e.g. 22.5" />
+          <input type="number" name="iv" value="{{ form.iv or '' }}"
+                 step="0.1" class="form-input" placeholder="e.g. 22.5" />
+        </div>
+        <div class="form-group">
+          <label>Dividend Yield (%) <span class="form-hint">0 for index futures</span></label>
+          <input type="number" name="dividend" value="{{ form.dividend or 0 }}"
+                 step="0.01" class="form-input" placeholder="e.g. 1.5" />
         </div>
         <div class="form-group">
           <label>Lot Size <span class="form-hint">Nifty = 65</span></label>
-          <input type="number" name="lot_size" value="{{ form.lot_size or 65 }}" step="1" class="form-input" />
+          <input type="number" name="lot_size" value="{{ form.lot_size or 65 }}"
+                 step="1" class="form-input" />
         </div>
         <div class="form-group">
           <label>Contracts <span class="form-hint">Number of lots</span></label>
-          <input type="number" name="contracts" value="{{ form.contracts or 1 }}" step="1" class="form-input" />
+          <input type="number" name="contracts" value="{{ form.contracts or 1 }}"
+                 step="1" class="form-input" />
         </div>
       </div>
-      <button type="submit" class="btn btn-primary btn-full" style="margin-top:1.25rem">⚡ Calculate Greeks</button>
+
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top:1.25rem">
+        ⚡ Calculate Greeks
+      </button>
     </form>
   </div>
 
-  {% if result_call and not result_call.error %}
+  <!-- ── FORM: Put-Call Parity ── -->
+  <div id="form-pcp" class="calc-input-card {% if model!='pcp' %}hidden{% endif %}">
+    <h2 class="card-title">📥 Put-Call Parity Inputs</h2>
+    <form method="POST" action="/calculator" autocomplete="off">
+      <input type="hidden" name="model" value="pcp" />
+
+      <!-- Row 1 -->
+      <div class="calc-form-grid-4">
+        <div class="form-group">
+          <label>Spot Price (₹)</label>
+          <input type="number" name="spot" value="{{ form.spot or '' }}"
+                 step="1" class="form-input" placeholder="e.g. 23750" />
+        </div>
+        <div class="form-group">
+          <label>Strike Price (₹)</label>
+          <input type="number" name="strike" value="{{ form.strike or '' }}"
+                 step="50" class="form-input" placeholder="e.g. 23800" />
+        </div>
+        <div class="form-group">
+          <label>Days to Expiry</label>
+          <input type="number" name="days" value="{{ form.days or '' }}"
+                 step="1" min="1" class="form-input" placeholder="e.g. 5" />
+        </div>
+        <div class="form-group">
+          <label>Risk-Free Rate (%)</label>
+          <input type="number" name="rate" value="{{ form.rate or '' }}"
+                 step="0.01" class="form-input" placeholder="e.g. 5.28" />
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="calc-form-grid-4" style="margin-top:14px">
+        <div class="form-group">
+          <label>Dividend Yield (%) <span class="form-hint">optional</span></label>
+          <input type="number" name="dividend" value="{{ form.dividend or 0 }}"
+                 step="0.01" class="form-input" placeholder="e.g. 1.5" />
+        </div>
+        <div class="form-group">
+          <label>Known Call Price (₹) <span class="form-hint">leave blank if unknown</span></label>
+          <input type="number" name="pcp_call" value=""
+                 step="0.01" class="form-input" placeholder="Market call price" />
+        </div>
+        <div class="form-group">
+          <label>Known Put Price (₹) <span class="form-hint">leave blank if unknown</span></label>
+          <input type="number" name="pcp_put" value=""
+                 step="0.01" class="form-input" placeholder="Market put price" />
+        </div>
+        <div class="form-group" style="justify-content:flex-end">
+          <button type="submit" class="btn btn-primary btn-full" style="height:47px">
+            ≡ Solve Parity
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── OUTPUT: BSM / Binomial ── -->
+  {% if result_call and not result_call.error and model != 'pcp' %}
+  <div class="model-badge-strip">
+    <span class="mb-badge">
+      {% if model == 'binomial' %}🌳 Binomial CRR — 200 Steps{% else %}📐 Black-Scholes-Merton{% endif %}
+    </span>
+    <span class="mb-sub">
+      d1 = {{ result_call.d1 }} &nbsp;·&nbsp; d2 = {{ result_call.d2 }} &nbsp;·&nbsp;
+      T = {{ (form.days/365)|round(4) if form.days else '—' }} yrs
+      {% if form.dividend and form.dividend > 0 %}
+        &nbsp;·&nbsp; q = {{ form.dividend }}%
+      {% endif %}
+    </span>
+  </div>
+
   <div class="calc-output-row">
 
+    <!-- CALL -->
     <div class="calc-output-card call-card">
       <div class="output-header call-header">
         <span class="output-badge call-badge">📈 CALL OPTION (CE)</span>
         <span class="output-price call-price">₹ {{ result_call.price }}</span>
       </div>
       <div class="greeks-output-grid">
-        <div class="go-item delta-bg"><span class="go-sym">Δ</span><span class="go-label">Delta</span><span class="go-val">{{ result_call.delta }}</span><span class="go-sub">{{ result_call.port_delta }} net position</span></div>
-        <div class="go-item gamma-bg"><span class="go-sym">Γ</span><span class="go-label">Gamma</span><span class="go-val">{{ result_call.gamma }}</span></div>
-        <div class="go-item theta-bg"><span class="go-sym">Θ</span><span class="go-label">Theta/day</span><span class="go-val neg">₹{{ result_call.theta }}</span><span class="go-sub">₹{{ result_call.daily_theta }} all lots/day</span></div>
-        <div class="go-item vega-bg"><span class="go-sym">ν</span><span class="go-label">Vega/1% IV</span><span class="go-val">₹{{ result_call.vega }}</span><span class="go-sub">₹{{ result_call.port_vega }} portfolio</span></div>
-        <div class="go-item rho-bg"><span class="go-sym">ρ</span><span class="go-label">Rho/1% rate</span><span class="go-val">{{ result_call.rho }}</span></div>
-        <div class="go-item dollar-bg"><span class="go-sym">₹</span><span class="go-label">Dollar Delta</span><span class="go-val">₹{{ "{:,.0f}".format(result_call.dollar_delta) }}</span></div>
-      </div>
-      <div class="bsm-internals">
-        <span>d1 = {{ result_call.d1 }}</span>
-        <span>d2 = {{ result_call.d2 }}</span>
-        <span>T = {{ (form.days/365)|round(4) if form.days else '—' }} yrs</span>
+        <div class="go-item delta-bg">
+          <span class="go-sym">Δ</span>
+          <span class="go-label">Delta</span>
+          <span class="go-val">{{ result_call.delta }}</span>
+          <span class="go-sub">{{ result_call.port_delta }} net</span>
+        </div>
+        <div class="go-item gamma-bg">
+          <span class="go-sym">Γ</span>
+          <span class="go-label">Gamma</span>
+          <span class="go-val">{{ result_call.gamma }}</span>
+        </div>
+        <div class="go-item theta-bg">
+          <span class="go-sym">Θ</span>
+          <span class="go-label">Theta/day</span>
+          <span class="go-val neg">₹{{ result_call.theta }}</span>
+          <span class="go-sub">₹{{ result_call.daily_theta }} all lots</span>
+        </div>
+        <div class="go-item vega-bg">
+          <span class="go-sym">ν</span>
+          <span class="go-label">Vega/1% IV</span>
+          <span class="go-val">₹{{ result_call.vega }}</span>
+          <span class="go-sub">₹{{ result_call.port_vega }} portfolio</span>
+        </div>
+        <div class="go-item rho-bg">
+          <span class="go-sym">ρ</span>
+          <span class="go-label">Rho/1% r</span>
+          <span class="go-val">{{ result_call.rho }}</span>
+        </div>
+        <div class="go-item dollar-bg">
+          <span class="go-sym">₹</span>
+          <span class="go-label">$ Delta</span>
+          <span class="go-val">₹{{ "{:,.0f}".format(result_call.dollar_delta) }}</span>
+        </div>
       </div>
     </div>
 
+    <!-- PUT -->
     <div class="calc-output-card put-card">
       <div class="output-header put-header">
         <span class="output-badge put-badge">📉 PUT OPTION (PE)</span>
         <span class="output-price put-price">₹ {{ result_put.price }}</span>
       </div>
       <div class="greeks-output-grid">
-        <div class="go-item delta-bg"><span class="go-sym">Δ</span><span class="go-label">Delta</span><span class="go-val neg">{{ result_put.delta }}</span><span class="go-sub">{{ result_put.port_delta }} net position</span></div>
-        <div class="go-item gamma-bg"><span class="go-sym">Γ</span><span class="go-label">Gamma</span><span class="go-val">{{ result_put.gamma }}</span></div>
-        <div class="go-item theta-bg"><span class="go-sym">Θ</span><span class="go-label">Theta/day</span><span class="go-val neg">₹{{ result_put.theta }}</span><span class="go-sub">₹{{ result_put.daily_theta }} all lots/day</span></div>
-        <div class="go-item vega-bg"><span class="go-sym">ν</span><span class="go-label">Vega/1% IV</span><span class="go-val">₹{{ result_put.vega }}</span><span class="go-sub">₹{{ result_put.port_vega }} portfolio</span></div>
-        <div class="go-item rho-bg"><span class="go-sym">ρ</span><span class="go-label">Rho/1% rate</span><span class="go-val neg">{{ result_put.rho }}</span></div>
-        <div class="go-item dollar-bg"><span class="go-sym">₹</span><span class="go-label">Dollar Delta</span><span class="go-val neg">₹{{ "{:,.0f}".format(result_put.dollar_delta|abs) }}</span></div>
-      </div>
-      <div class="bsm-internals">
-        <span>d1 = {{ result_put.d1 }}</span>
-        <span>d2 = {{ result_put.d2 }}</span>
-        <span>Put-Call parity holds ✓</span>
+        <div class="go-item delta-bg">
+          <span class="go-sym">Δ</span>
+          <span class="go-label">Delta</span>
+          <span class="go-val neg">{{ result_put.delta }}</span>
+          <span class="go-sub">{{ result_put.port_delta }} net</span>
+        </div>
+        <div class="go-item gamma-bg">
+          <span class="go-sym">Γ</span>
+          <span class="go-label">Gamma</span>
+          <span class="go-val">{{ result_put.gamma }}</span>
+        </div>
+        <div class="go-item theta-bg">
+          <span class="go-sym">Θ</span>
+          <span class="go-label">Theta/day</span>
+          <span class="go-val neg">₹{{ result_put.theta }}</span>
+          <span class="go-sub">₹{{ result_put.daily_theta }} all lots</span>
+        </div>
+        <div class="go-item vega-bg">
+          <span class="go-sym">ν</span>
+          <span class="go-label">Vega/1% IV</span>
+          <span class="go-val">₹{{ result_put.vega }}</span>
+          <span class="go-sub">₹{{ result_put.port_vega }} portfolio</span>
+        </div>
+        <div class="go-item rho-bg">
+          <span class="go-sym">ρ</span>
+          <span class="go-label">Rho/1% r</span>
+          <span class="go-val neg">{{ result_put.rho }}</span>
+        </div>
+        <div class="go-item dollar-bg">
+          <span class="go-sym">₹</span>
+          <span class="go-label">$ Delta</span>
+          <span class="go-val neg">₹{{ "{:,.0f}".format(result_put.dollar_delta|abs) }}</span>
+        </div>
       </div>
     </div>
 
   </div>
+
   {% elif result_call and result_call.error %}
   <div class="error-box" style="margin-top:1.5rem">⚠️ {{ result_call.error }}</div>
   {% endif %}
 
-  <div class="formula-reference" style="margin-top:2rem">
-    <h3>📐 BSM Formula Reference</h3>
-    <div class="ref-grid">
-      <div class="ref-item"><span class="ref-label">d1</span><span class="ref-formula">[ln(S/K) + (r + σ²/2)×T] / (σ×√T)</span></div>
-      <div class="ref-item"><span class="ref-label">d2</span><span class="ref-formula">d1 – σ×√T</span></div>
-      <div class="ref-item"><span class="ref-label">Call</span><span class="ref-formula">S×N(d1) – K×e⁻ʳᵀ×N(d2)</span></div>
-      <div class="ref-item"><span class="ref-label">Put</span><span class="ref-formula">K×e⁻ʳᵀ×N(–d2) – S×N(–d1)</span></div>
-      <div class="ref-item"><span class="ref-label">Δ Call</span><span class="ref-formula">N(d1)</span></div>
-      <div class="ref-item"><span class="ref-label">Γ</span><span class="ref-formula">N'(d1) / (S×σ×√T)</span></div>
-      <div class="ref-item"><span class="ref-label">Θ</span><span class="ref-formula">–[S×N'(d1)×σ/(2√T)] – r×K×e⁻ʳᵀ×N(d2) ÷ 365</span></div>
-      <div class="ref-item"><span class="ref-label">ν</span><span class="ref-formula">S×√T×N'(d1) ÷ 100</span></div>
+  <!-- ── OUTPUT: Put-Call Parity ── -->
+  {% if pcp_result %}
+  <div class="pcp-result-card" style="margin-top:2rem">
+    <h2 class="card-title">≡ Put-Call Parity Result</h2>
+
+    <div class="pcp-equation">
+      C − P = Se<sup>−qT</sup> − Ke<sup>−rT</sup>
+      &nbsp;=&nbsp;
+      <span class="pcp-val">{{ pcp_result.fwd_S }}</span> − <span class="pcp-val">{{ pcp_result.disc_K }}</span>
+      &nbsp;=&nbsp;
+      <span class="pcp-highlight">{{ pcp_result.parity_lhs }}</span>
+    </div>
+
+    <div class="pcp-prices-row">
+      <div class="pcp-price-box call-pcp">
+        <div class="pcp-type">📈 Call Price</div>
+        <div class="pcp-price call-price">₹ {{ pcp_result.call }}</div>
+        <div class="pcp-note">{{ "Market Input" if form.pcp_call else "Implied by Parity" }}</div>
+      </div>
+      <div class="pcp-arrow">↔</div>
+      <div class="pcp-price-box put-pcp">
+        <div class="pcp-type">📉 Put Price</div>
+        <div class="pcp-price put-price">₹ {{ pcp_result.put }}</div>
+        <div class="pcp-note">{{ "Market Input" if form.pcp_put else "Implied by Parity" }}</div>
+      </div>
+    </div>
+
+    <div class="pcp-arb-row">
+      {% if pcp_result.arb_diff|abs < 0.5 %}
+      <div class="pcp-arb safe">✅ No Arbitrage — C − P ≈ Se⁻qT − Ke⁻rT (diff: {{ pcp_result.arb_diff }})</div>
+      {% else %}
+      <div class="pcp-arb breach">⚠️ Potential Arbitrage Gap — C − P differs by ₹{{ pcp_result.arb_diff }} from theoretical</div>
+      {% endif %}
+    </div>
+
+    <div class="pcp-details-grid">
+      <div class="pcp-det"><span>Spot (S)</span><strong>₹{{ pcp_result.S }}</strong></div>
+      <div class="pcp-det"><span>Strike (K)</span><strong>₹{{ pcp_result.K }}</strong></div>
+      <div class="pcp-det"><span>T (years)</span><strong>{{ pcp_result.T }}</strong></div>
+      <div class="pcp-det"><span>Rate (r)</span><strong>{{ pcp_result.r }}%</strong></div>
+      <div class="pcp-det"><span>Dividend (q)</span><strong>{{ pcp_result.q }}%</strong></div>
+      <div class="pcp-det"><span>PV(K) = Ke⁻ʳᵀ</span><strong>₹{{ pcp_result.disc_K }}</strong></div>
     </div>
   </div>
+  {% endif %}
+
+  {% if error %}
+  <div class="error-box" style="margin-top:1.5rem">⚠️ {{ error }}</div>
+  {% endif %}
+
+  <!-- ── Formula Reference ── -->
+  <div class="formula-reference" style="margin-top:2rem">
+    <h3>📐 Formula Reference</h3>
+    <div class="formula-tabs">
+      <button class="ftab active" onclick="showFtab('fbsm',this)">BSM</button>
+      <button class="ftab"        onclick="showFtab('fbin',this)">Binomial</button>
+      <button class="ftab"        onclick="showFtab('fpcp',this)">Put-Call Parity</button>
+    </div>
+
+    <div id="fbsm" class="fref-panel">
+      <div class="ref-grid">
+        <div class="ref-item"><span class="ref-label">d1</span><span class="ref-formula">[ln(S/K) + (r−q+σ²/2)×T] / (σ×√T)</span></div>
+        <div class="ref-item"><span class="ref-label">d2</span><span class="ref-formula">d1 – σ×√T</span></div>
+        <div class="ref-item"><span class="ref-label">Call</span><span class="ref-formula">Se⁻qT×N(d1) – Ke⁻rT×N(d2)</span></div>
+        <div class="ref-item"><span class="ref-label">Put</span><span class="ref-formula">Ke⁻rT×N(–d2) – Se⁻qT×N(–d1)</span></div>
+        <div class="ref-item"><span class="ref-label">Δ Call</span><span class="ref-formula">e⁻qT × N(d1)</span></div>
+        <div class="ref-item"><span class="ref-label">Γ</span><span class="ref-formula">e⁻qT × N'(d1) / (S×σ×√T)</span></div>
+        <div class="ref-item"><span class="ref-label">Θ</span><span class="ref-formula">–[Se⁻qT×N'(d1)×σ/(2√T)] – rKe⁻rT×N(d2) + qSe⁻qT×N(d1) ÷ 365</span></div>
+        <div class="ref-item"><span class="ref-label">ν</span><span class="ref-formula">Se⁻qT × √T × N'(d1) ÷ 100</span></div>
+        <div class="ref-item"><span class="ref-label">ρ Call</span><span class="ref-formula">K×T×e⁻rT×N(d2) ÷ 100</span></div>
+      </div>
+    </div>
+
+    <div id="fbin" class="fref-panel hidden">
+      <div class="ref-grid">
+        <div class="ref-item"><span class="ref-label">u</span><span class="ref-formula">e^(σ×√Δt) — up factor per step</span></div>
+        <div class="ref-item"><span class="ref-label">d</span><span class="ref-formula">1/u — down factor</span></div>
+        <div class="ref-item"><span class="ref-label">p</span><span class="ref-formula">[e^((r−q)Δt) − d] / (u − d) — risk-neutral prob</span></div>
+        <div class="ref-item"><span class="ref-label">V</span><span class="ref-formula">e^(−rΔt) × [p×V_up + (1−p)×V_down]</span></div>
+        <div class="ref-item"><span class="ref-label">Steps</span><span class="ref-formula">200 steps used (converges to BSM)</span></div>
+        <div class="ref-item"><span class="ref-label">Greeks</span><span class="ref-formula">Finite difference on tree (Δ, Γ, Θ, ν)</span></div>
+      </div>
+    </div>
+
+    <div id="fpcp" class="fref-panel hidden">
+      <div class="ref-grid">
+        <div class="ref-item"><span class="ref-label">Parity</span><span class="ref-formula">C − P = Se⁻qT − Ke⁻rT</span></div>
+        <div class="ref-item"><span class="ref-label">Imply Put</span><span class="ref-formula">P = C − Se⁻qT + Ke⁻rT</span></div>
+        <div class="ref-item"><span class="ref-label">Imply Call</span><span class="ref-formula">C = P + Se⁻qT − Ke⁻rT</span></div>
+        <div class="ref-item"><span class="ref-label">Arb (no div)</span><span class="ref-formula">If C − P ≠ S − PV(K), risk-free profit exists</span></div>
+        <div class="ref-item"><span class="ref-label">Assumption</span><span class="ref-formula">European-style only. American options may deviate.</span></div>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<script>
+// ── Model tab switching ──────────────────────────────────────────────────
+function switchModel(m) {
+  ['bsm','binomial','pcp'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===m);
+    const d = document.getElementById('desc-'+t);
+    if(d) d.classList.toggle('active', t===m);
+  });
+  const bsmbinForm = document.getElementById('form-bsm-bin');
+  const pcpForm    = document.getElementById('form-pcp');
+  if(m === 'pcp') {
+    bsmbinForm.classList.add('hidden');
+    pcpForm.classList.remove('hidden');
+  } else {
+    bsmbinForm.classList.remove('hidden');
+    pcpForm.classList.add('hidden');
+    document.getElementById('model-field-bsm').value = m;
+  }
+}
+
+// ── Formula sub-tabs ──────────────────────────────────────────────────
+function showFtab(id, btn) {
+  ['fbsm','fbin','fpcp'].forEach(p => {
+    const el = document.getElementById(p);
+    if(el) el.classList.toggle('hidden', p!==id);
+  });
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
 {% endblock %}
