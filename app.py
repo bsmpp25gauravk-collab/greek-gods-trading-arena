@@ -1,488 +1,539 @@
-from flask import Flask, render_template, request, jsonify
-import math, random
+import math
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-LIMITS = {"delta": 100, "gamma": 20, "vega": 500, "theta": 1000}
+# ── Pure-Python normal distribution helpers ────────────────────────────────
+def _erf(x):
+    """Abramowitz & Stegun approximation for erf."""
+    sign = 1 if x >= 0 else -1
+    x = abs(x)
+    t = 1.0 / (1.0 + 0.3275911 * x)
+    y = 1.0 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t
+                 - 0.284496736) * t + 0.254829592) * t * math.exp(-x * x)
+    return sign * y
 
-# ── Pure-Python BSM (no scipy needed) ─────────────────────────────────────────
-def _norm_cdf(x):
-    return math.erfc(-x / math.sqrt(2)) / 2
+def norm_cdf(x):
+    return 0.5 * (1.0 + _erf(x / math.sqrt(2)))
 
-def _norm_pdf(x):
+def norm_pdf(x):
     return math.exp(-0.5 * x * x) / math.sqrt(2 * math.pi)
 
-def bsm(S, K, T, r, sigma, option_type="call"):
-    if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
-        return None
-    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+
+# ── BSM (with continuous dividend yield q) ─────────────────────────────────
+def bsm_greeks(S, K, T, r, sigma, q=0.0):
+    """
+    Returns dict with price, delta, gamma, theta, vega, rho for both call & put.
+    r, sigma, q are in decimal (0.05, 0.22, 0.015 etc.)
+    """
+    if T <= 0 or sigma <= 0:
+        raise ValueError("T and sigma must be positive.")
+    d1 = (math.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
     d2 = d1 - sigma * math.sqrt(T)
-    if option_type == "call":
-        price = S * _norm_cdf(d1) - K * math.exp(-r * T) * _norm_cdf(d2)
-        delta = _norm_cdf(d1)
-        rho   = K * T * math.exp(-r * T) * _norm_cdf(d2) / 100
-    else:
-        price = K * math.exp(-r * T) * _norm_cdf(-d2) - S * _norm_cdf(-d1)
-        delta = _norm_cdf(d1) - 1
-        rho   = -K * T * math.exp(-r * T) * _norm_cdf(-d2) / 100
-    gamma = _norm_pdf(d1) / (S * sigma * math.sqrt(T))
-    vega  = S * math.sqrt(T) * _norm_pdf(d1) / 100
-    theta = (-(S * _norm_pdf(d1) * sigma) / (2 * math.sqrt(T))
-             - r * K * math.exp(-r * T) * _norm_cdf(d2 if option_type == "call" else -d2)) / 365
+
+    Nd1  = norm_cdf(d1)
+    Nd2  = norm_cdf(d2)
+    Nd1n = norm_cdf(-d1)
+    Nd2n = norm_cdf(-d2)
+    nd1  = norm_pdf(d1)
+
+    disc  = math.exp(-r * T)
+    divsc = math.exp(-q * T)
+
+    call_price = S * divsc * Nd1 - K * disc * Nd2
+    put_price  = K * disc * Nd2n - S * divsc * Nd1n
+
+    delta_call =  divsc * Nd1
+    delta_put  =  divsc * (Nd1 - 1)
+
+    gamma = divsc * nd1 / (S * sigma * math.sqrt(T))
+
+    theta_call = (
+        -S * divsc * nd1 * sigma / (2 * math.sqrt(T))
+        - r * K * disc * Nd2
+        + q * S * divsc * Nd1
+    ) / 365
+    theta_put = (
+        -S * divsc * nd1 * sigma / (2 * math.sqrt(T))
+        + r * K * disc * Nd2n
+        - q * S * divsc * Nd1n
+    ) / 365
+
+    vega = S * divsc * math.sqrt(T) * nd1 / 100  # per 1% IV
+
+    rho_call =  K * T * disc * Nd2  / 100
+    rho_put  = -K * T * disc * Nd2n / 100
+
     return {
-        "price": round(price, 2), "d1": round(d1, 4), "d2": round(d2, 4),
-        "delta": round(delta, 4), "gamma": round(gamma, 6),
-        "theta": round(theta, 2), "vega": round(vega, 4), "rho": round(rho, 4),
+        'd1': round(d1, 4), 'd2': round(d2, 4),
+        'call': {
+            'price': round(call_price, 2),
+            'delta': round(delta_call, 4),
+            'gamma': round(gamma, 6),
+            'theta': round(theta_call, 2),
+            'vega':  round(vega, 2),
+            'rho':   round(rho_call, 4),
+        },
+        'put': {
+            'price': round(put_price, 2),
+            'delta': round(delta_put, 4),
+            'gamma': round(gamma, 6),
+            'theta': round(theta_put, 2),
+            'vega':  round(vega, 2),
+            'rho':   round(rho_put, 4),
+        }
     }
 
-def risk_pct(value, limit):
-    return round(min(abs(value) / limit * 100, 120), 1)
 
-def risk_zone(pct):
-    if pct >= 100: return "breach"
-    if pct >= 70:  return "caution"
-    return "safe"
+# ── Binomial (CRR) with dividends ─────────────────────────────────────────
+def binomial_greeks(S, K, T, r, sigma, q=0.0, steps=200, option_type='call'):
+    """
+    Cox-Ross-Rubinstein binomial tree.
+    Returns price + approximate greeks via finite difference on the tree.
+    """
+    dt = T / steps
+    u  = math.exp(sigma * math.sqrt(dt))
+    d  = 1.0 / u
+    p  = (math.exp((r - q) * dt) - d) / (u - d)
+    disc = math.exp(-r * dt)
 
-def get_recommendations(port):
-    recs = []
-    d, dv, dt, dg = port["delta"], port["vega"], port["theta"], port["gamma"]
-    if abs(d) > LIMITS["delta"]:
-        hedge = "sell futures / add short calls" if d > 0 else "buy futures / add long calls"
-        recs.append(f"🔴 Delta BREACH ({d:+.1f}) — {'too long' if d>0 else 'too short'}. Action: {hedge}.")
-    elif abs(d) > LIMITS["delta"] * 0.7:
-        recs.append(f"🟡 Delta nearing limit ({d:+.1f} / ±{LIMITS['delta']}). Monitor closely.")
-    if abs(dg * 1000) > LIMITS["gamma"]:
-        recs.append(f"🔴 Gamma BREACH — close short ATM positions immediately.")
-    elif abs(dg * 1000) > LIMITS["gamma"] * 0.7:
-        recs.append(f"🟡 Gamma caution — reduce short near-ATM exposure.")
-    if abs(dv) > LIMITS["vega"]:
-        recs.append(f"🔴 Vega BREACH (₹{dv:+.0f}) — {'long' if dv>0 else 'short'} vol too high.")
-    elif abs(dv) > LIMITS["vega"] * 0.7:
-        recs.append(f"🟡 Vega approaching limit. Watch for upcoming events.")
-    if abs(dt) > LIMITS["theta"]:
-        recs.append(f"🔴 Theta BREACH (₹{dt:+.0f}/day) — rebalance premium exposure.")
-    if not recs:
-        recs.append("✅ All Greeks within limits. Portfolio is well-managed.")
-    return recs
+    is_call = (option_type == 'call')
 
-# ── ROUTES ────────────────────────────────────────────────────────────────────
-@app.route("/")
+    # Terminal payoffs
+    prices = [S * (u ** (steps - 2 * j)) for j in range(steps + 1)]
+    values = [max(px - K, 0) if is_call else max(K - px, 0) for px in prices]
+
+    # Backward induction
+    for i in range(steps - 1, -1, -1):
+        for j in range(i + 1):
+            values[j] = disc * (p * values[j] + (1 - p) * values[j + 1])
+
+    price = values[0]
+
+    # Greeks via small perturbations on tree
+    dS = S * 0.01
+    def _price(S_):
+        px_ = [S_ * (u ** (i - 2*j)) for j in range(steps+1)]
+        v_ = [max(px_[j]-K,0) if is_call else max(K-px_[j],0) for j in range(steps+1)]
+        for i in range(steps-1,-1,-1):
+            for j in range(i+1):
+                v_[j] = disc*(p*v_[j] + (1-p)*v_[j+1])
+        return v_[0]
+
+    p_up   = _price(S + dS)
+    p_down = _price(S - dS)
+
+    delta = (p_up - p_down) / (2 * dS)
+    gamma = (p_up - 2 * price + p_down) / (dS ** 2)
+
+    dt_small = 1/365
+    T2 = T - dt_small
+    if T2 > 0:
+        steps2 = max(10, int(steps * T2 / T))
+        dt2 = T2 / steps2
+        u2 = math.exp(sigma * math.sqrt(dt2))
+        d2_ = 1.0 / u2
+        p2 = (math.exp((r - q) * dt2) - d2_) / (u2 - d2_)
+        disc2 = math.exp(-r * dt2)
+        px2 = [S * (u2 ** (steps2 - 2*j)) for j in range(steps2+1)]
+        v2  = [max(x-K,0) if is_call else max(K-x,0) for x in px2]
+        for i in range(steps2-1,-1,-1):
+            for j in range(i+1):
+                v2[j] = disc2*(p2*v2[j]+(1-p2)*v2[j+1])
+        theta = (v2[0] - price) / dt_small / 365  # approximate daily
+    else:
+        theta = 0.0
+
+    # Vega: bump IV by 1%
+    sigma2 = sigma + 0.01
+    u2v = math.exp(sigma2 * math.sqrt(dt))
+    d2v = 1.0 / u2v
+    p2v = (math.exp((r-q)*dt) - d2v) / (u2v - d2v)
+    disc2v = math.exp(-r*dt)
+    px2v = [S*(u2v**(steps-2*j)) for j in range(steps+1)]
+    v2v  = [max(x-K,0) if is_call else max(K-x,0) for x in px2v]
+    for i in range(steps-1,-1,-1):
+        for j in range(i+1):
+            v2v[j] = disc2v*(p2v*v2v[j]+(1-p2v)*v2v[j+1])
+    vega = v2v[0] - price  # change per 1% IV bump
+
+    return {
+        'price': round(price, 2),
+        'delta': round(delta, 4),
+        'gamma': round(gamma, 6),
+        'theta': round(theta, 2),
+        'vega':  round(vega, 2),
+    }
+
+
+# ── Put-Call Parity ────────────────────────────────────────────────────────
+def put_call_parity(S, K, T, r, q=0.0, call_price=None, put_price=None):
+    """
+    C - P = S*e^(-qT) - K*e^(-rT)
+    Given one, solve for the other.
+    """
+    lhs = S * math.exp(-q * T) - K * math.exp(-r * T)  # forward value
+    if call_price is not None:
+        implied_put = call_price - lhs
+        return {'call': round(call_price, 2), 'put': round(implied_put, 2), 'parity_lhs': round(lhs, 4)}
+    elif put_price is not None:
+        implied_call = put_price + lhs
+        return {'call': round(implied_call, 2), 'put': round(put_price, 2), 'parity_lhs': round(lhs, 4)}
+    else:
+        return {'parity_lhs': round(lhs, 4)}
+
+
+# ── Shared form-parsing helper ─────────────────────────────────────────────
+def _flt(form, key, default=None):
+    try:
+        val = form.get(key, '').strip()
+        return float(val) if val else default
+    except (ValueError, AttributeError):
+        return default
+
+def _int(form, key, default=None):
+    try:
+        val = form.get(key, '').strip()
+        return int(val) if val else default
+    except (ValueError, AttributeError):
+        return default
+
+
+# ── Routes ─────────────────────────────────────────────────────────────────
+@app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
-@app.route("/study")
+
+@app.route('/study')
 def study():
-    return render_template("study.html")
+    return render_template('study.html')
 
-# ── CALCULATOR ────────────────────────────────────────────────────────────────
-@app.route("/calculator", methods=["GET", "POST"])
+
+@app.route('/calculator', methods=['GET', 'POST'])
 def calculator():
+    form = {}
     result_call = result_put = None
-    # Always store display values (percentages as user sees them)
-    form = {"spot": 0, "strike": 0, "days": 0, "rate": 0, "iv": 0,
-            "lot_size": 65, "contracts": 1}
-    if request.method == "POST":
-        try:
-            spot      = float(request.form["spot"])
-            strike    = float(request.form["strike"])
-            days      = float(request.form["days"])
-            rate_pct  = float(request.form["rate"])   # user enters 5.28
-            iv_pct    = float(request.form["iv"])      # user enters 22.49
-            lot_size  = int(request.form.get("lot_size", 65))
-            contracts = int(request.form.get("contracts", 1))
-            # Store display values back — this prevents the "second click" bug
-            form = {"spot": spot, "strike": strike, "days": days,
-                    "rate": rate_pct, "iv": iv_pct,
-                    "lot_size": lot_size, "contracts": contracts}
-            rate = rate_pct / 100
-            iv   = iv_pct   / 100
-            T    = days / 365
-            ps   = lot_size * contracts
-            gc = bsm(spot, strike, T, rate, iv, "call")
-            gp = bsm(spot, strike, T, rate, iv, "put")
-            if gc and gp:
-                for g, sign in [(gc, 1), (gp, -1)]:
-                    g["port_delta"]   = round(g["delta"] * ps, 2)
-                    g["dollar_delta"] = round(g["delta"] * spot * ps, 0)
-                    g["daily_theta"]  = round(g["theta"] * ps, 2)
-                    g["port_vega"]    = round(g["vega"] * ps, 2)
-                result_call, result_put = gc, gp
-        except Exception as e:
-            result_call = {"error": str(e)}
-    return render_template("calculator.html",
-                           result_call=result_call, result_put=result_put, form=form)
+    binom_call = binom_put = None
+    pcp_result = None
+    model = 'bsm'
+    error = None
 
-# ── SCENARIOS ─────────────────────────────────────────────────────────────────
-@app.route("/scenarios", methods=["GET", "POST"])
+    if request.method == 'POST':
+        model = request.form.get('model', 'bsm')
+        S   = _flt(request.form, 'spot')
+        K   = _flt(request.form, 'strike')
+        days = _flt(request.form, 'days')
+        r_pct = _flt(request.form, 'rate', 5.28)
+        iv_pct = _flt(request.form, 'iv')
+        q_pct = _flt(request.form, 'dividend', 0.0)
+        lot_size  = _flt(request.form, 'lot_size', 65)
+        contracts = _flt(request.form, 'contracts', 1)
+
+        form = dict(
+            spot=S, strike=K, days=days, rate=r_pct, iv=iv_pct,
+            dividend=q_pct, lot_size=lot_size, contracts=contracts, model=model
+        )
+
+        if model in ('bsm', 'binomial'):
+            if not all([S, K, days, iv_pct]):
+                error = 'Please fill Spot, Strike, Days, and IV.'
+            else:
+                T = days / 365
+                r = r_pct / 100
+                sigma = iv_pct / 100
+                q = (q_pct or 0.0) / 100
+                lots = (lot_size or 65) * (contracts or 1)
+
+                try:
+                    if model == 'bsm':
+                        res = bsm_greeks(S, K, T, r, sigma, q)
+                        d1v, d2v = res['d1'], res['d2']
+                        c, p_ = res['call'], res['put']
+
+                        result_call = {
+                            'price':       c['price'],
+                            'delta':       c['delta'],
+                            'gamma':       c['gamma'],
+                            'theta':       c['theta'],
+                            'vega':        c['vega'],
+                            'rho':         c['rho'],
+                            'port_delta':  round(c['delta'] * lots, 2),
+                            'daily_theta': round(c['theta'] * lots, 2),
+                            'port_vega':   round(c['vega']  * lots, 2),
+                            'dollar_delta':round(c['delta'] * S * lots, 0),
+                            'd1': d1v, 'd2': d2v,
+                        }
+                        result_put = {
+                            'price':       p_['price'],
+                            'delta':       p_['delta'],
+                            'gamma':       p_['gamma'],
+                            'theta':       p_['theta'],
+                            'vega':        p_['vega'],
+                            'rho':         p_['rho'],
+                            'port_delta':  round(p_['delta'] * lots, 2),
+                            'daily_theta': round(p_['theta'] * lots, 2),
+                            'port_vega':   round(p_['vega']  * lots, 2),
+                            'dollar_delta':round(p_['delta'] * S * lots, 0),
+                            'd1': d1v, 'd2': d2v,
+                        }
+
+                    else:  # binomial
+                        bc = binomial_greeks(S, K, T, r, sigma, q, steps=200, option_type='call')
+                        bp = binomial_greeks(S, K, T, r, sigma, q, steps=200, option_type='put')
+
+                        def _wrap(b):
+                            return {
+                                'price':       b['price'],
+                                'delta':       b['delta'],
+                                'gamma':       b['gamma'],
+                                'theta':       b['theta'],
+                                'vega':        b['vega'],
+                                'rho':         '—',
+                                'port_delta':  round(b['delta'] * lots, 2),
+                                'daily_theta': round(b['theta'] * lots, 2),
+                                'port_vega':   round(b['vega']  * lots, 2),
+                                'dollar_delta':round(b['delta'] * S * lots, 0),
+                                'd1': '—', 'd2': '—',
+                            }
+                        result_call = _wrap(bc)
+                        result_put  = _wrap(bp)
+
+                except Exception as ex:
+                    result_call = {'error': str(ex)}
+
+        elif model == 'pcp':
+            # Put-Call Parity
+            S   = _flt(request.form, 'spot')
+            K   = _flt(request.form, 'strike')
+            days = _flt(request.form, 'days')
+            r_pct = _flt(request.form, 'rate', 5.28)
+            q_pct = _flt(request.form, 'dividend', 0.0)
+            call_inp = _flt(request.form, 'pcp_call')
+            put_inp  = _flt(request.form, 'pcp_put')
+
+            if not all([S, K, days]):
+                error = 'Please fill Spot, Strike, and Days.'
+            elif call_inp is None and put_inp is None:
+                error = 'Please provide either a Call price or a Put price.'
+            else:
+                T = days / 365
+                r = r_pct / 100
+                q = (q_pct or 0.0) / 100
+                try:
+                    pcp_result = put_call_parity(S, K, T, r, q,
+                                                 call_price=call_inp,
+                                                 put_price=put_inp)
+                    # Also attach forward & arbitrage check
+                    pcp_result['S']   = S
+                    pcp_result['K']   = K
+                    pcp_result['T']   = round(T, 4)
+                    pcp_result['r']   = r_pct
+                    pcp_result['q']   = q_pct or 0
+                    pcp_result['disc_K'] = round(K * math.exp(-r * T), 2)
+                    pcp_result['fwd_S']  = round(S * math.exp(-q * T), 2)
+                    diff = round(pcp_result['call'] - pcp_result['put'] - pcp_result['parity_lhs'], 4)
+                    pcp_result['arb_diff'] = diff
+                except Exception as ex:
+                    error = str(ex)
+
+    return render_template(
+        'calculator.html',
+        form=form,
+        model=model,
+        result_call=result_call,
+        result_put=result_put,
+        pcp_result=pcp_result,
+        error=error,
+    )
+
+
+@app.route('/scenarios', methods=['GET', 'POST'])
 def scenarios():
-    results, form = [], {}
-    SCENARIOS = [
-        {"label": "Base",         "price_shock":  0, "iv_shock":  0},
-        {"label": "Mild Drop",    "price_shock": -2, "iv_shock":  2},
-        {"label": "Crash −5%",   "price_shock": -5, "iv_shock": 10},
-        {"label": "Rally +5%",   "price_shock":  5, "iv_shock": -3},
-        {"label": "Vol Spike",    "price_shock":  0, "iv_shock": 15},
-        {"label": "Black Swan",  "price_shock":-10, "iv_shock": 20},
-    ]
-    if request.method == "POST":
-        try:
-            spot      = float(request.form["spot"])
-            strike    = float(request.form["strike"])
-            days      = float(request.form["days"])
-            rate_pct  = float(request.form["rate"])
-            iv_pct    = float(request.form["iv"])
-            option_type = request.form.get("option_type", "call")
-            lot_size  = int(request.form.get("lot_size", 65))
-            contracts = int(request.form.get("contracts", 1))
-            form = {"spot": spot, "strike": strike, "days": days,
-                    "rate": rate_pct, "iv": iv_pct, "option_type": option_type,
-                    "lot_size": lot_size, "contracts": contracts}
-            rate = rate_pct / 100
-            iv   = iv_pct   / 100
-            ps   = lot_size * contracts
-            base_g = bsm(spot, strike, max(days/365, 0.001), rate, iv, option_type)
-            for sc in SCENARIOS:
-                new_spot = spot * (1 + sc["price_shock"] / 100)
-                new_iv   = max(iv + sc["iv_shock"] / 100, 0.01)
-                new_T    = max(days / 365, 0.001)
-                g = bsm(new_spot, strike, new_T, rate, new_iv, option_type)
-                if g and base_g:
-                    results.append({
-                        "label":       sc["label"],
-                        "price_shock": sc["price_shock"],
-                        "iv_shock":    sc["iv_shock"],
-                        "new_spot":    round(new_spot, 0),
-                        "new_iv":      round(new_iv * 100, 2),
-                        "price":       g["price"],
-                        "delta":       g["delta"],
-                        "gamma":       g["gamma"],
-                        "theta":       g["theta"],
-                        "vega":        g["vega"],
-                        "port_delta":  round(g["delta"] * ps, 2),
-                        "pnl":         round((g["price"] - base_g["price"]) * ps, 2),
-                    })
-        except:
-            results = []
-    if not form:
-        form = {"spot": 0, "strike": 0, "days": 0, "rate": 0, "iv": 0,
-                "option_type": "call", "lot_size": 65, "contracts": 1}
-    return render_template("scenarios.html", results=results, form=form, scenarios=SCENARIOS)
+    form = {}
+    results = []
 
-# ── PORTFOLIO ─────────────────────────────────────────────────────────────────
-@app.route("/portfolio", methods=["GET", "POST"])
+    if request.method == 'POST':
+        S      = _flt(request.form, 'spot')
+        K      = _flt(request.form, 'strike')
+        days   = _int(request.form, 'days')   # INTEGER
+        r_pct  = _flt(request.form, 'rate', 5.28)
+        iv_pct = _flt(request.form, 'iv')
+        q_pct  = _flt(request.form, 'dividend', 0.0)
+        opt    = request.form.get('option_type', 'call')
+        lot_size  = _int(request.form, 'lot_size', 65)  # INTEGER
+        contracts = _int(request.form, 'contracts', 1)  # INTEGER
+
+        form = dict(spot=S, strike=K, days=days, rate=r_pct, iv=iv_pct,
+                    dividend=q_pct, option_type=opt, lot_size=lot_size, contracts=contracts)
+
+        if S and K and days and iv_pct:
+            SCENARIOS = [
+                {'label': 'Base',       'price_shock': 0,    'iv_shock': 0},
+                {'label': 'Mild Drop',  'price_shock': -2,   'iv_shock': 2},
+                {'label': 'Crash',      'price_shock': -6,   'iv_shock': 10},
+                {'label': 'Big Rally',  'price_shock': +5,   'iv_shock': -3},
+                {'label': 'Vol Spike',  'price_shock': 0,    'iv_shock': 15},
+                {'label': 'Black Swan', 'price_shock': -10,  'iv_shock': 20},
+            ]
+            lots = (lot_size or 65) * (contracts or 1)
+            r = r_pct / 100
+            q = (q_pct or 0.0) / 100
+
+            base_res = None
+            for sc in SCENARIOS:
+                new_S  = S * (1 + sc['price_shock'] / 100)
+                new_iv = max(iv_pct + sc['iv_shock'], 0.5)
+                T      = days / 365
+                sigma  = new_iv / 100
+
+                try:
+                    res = bsm_greeks(new_S, K, T, r, sigma, q)
+                    g   = res['call'] if opt == 'call' else res['put']
+                    price = g['price']
+
+                    if base_res is None:
+                        base_res = price
+                    pnl = round((price - base_res) * lots, 0)
+
+                    results.append({
+                        'label':       sc['label'],
+                        'price_shock': sc['price_shock'],
+                        'iv_shock':    sc['iv_shock'],
+                        'new_spot':    round(new_S, 0),
+                        'new_iv':      round(new_iv, 1),
+                        'price':       price,
+                        'pnl':         pnl,
+                        'delta':       g['delta'],
+                        'gamma':       g['gamma'],
+                        'theta':       g['theta'],
+                        'vega':        g['vega'],
+                        'port_delta':  round(g['delta'] * lots, 2),
+                    })
+                except Exception:
+                    pass
+
+    return render_template('scenarios.html', form=form, results=results)
+
+
+@app.route('/portfolio', methods=['GET', 'POST'])
 def portfolio():
-    positions, portfolio_greeks, gauges, recs = [], {}, {}, []
-    if request.method == "POST":
-        spot = float(request.form.get("spot", 0) or 0)
-        rate = float(request.form.get("rate", 5.28) or 5.28) / 100
-        port_d = port_g = port_t = port_v = 0.0
+    LIMITS = {'delta': 500, 'gamma': 50, 'vega': 200000, 'theta': 50000}
+    positions = []
+    portfolio_totals = None
+    gauges = {}
+    recs = []
+
+    if request.method == 'POST':
+        S     = _flt(request.form, 'spot')
+        r_pct = _flt(request.form, 'rate', 5.28)
+        q_pct = _flt(request.form, 'dividend', 0.0)
+        r     = r_pct / 100
+        q     = (q_pct or 0.0) / 100
+
         i = 0
         while True:
-            name = request.form.get(f"name_{i}", "").strip()
-            if not name:
+            name = request.form.get(f'name_{i}')
+            if name is None:
                 break
-            try:
-                strike   = float(request.form.get(f"strike_{i}", 0))
-                iv_pct   = float(request.form.get(f"iv_{i}", 20))
-                days     = float(request.form.get(f"days_{i}", 5))
-                lots     = int(request.form.get(f"lots_{i}", 1))
-                lot_size = int(request.form.get(f"lot_size_{i}", 65))
-                opt_type = request.form.get(f"type_{i}", "call")
-                g = bsm(spot, strike, max(days/365, 0.001), rate, iv_pct/100, opt_type)
-                if g:
-                    ps = lot_size * lots
-                    pd = round(g["delta"] * ps, 2)
-                    pg = round(g["gamma"] * ps, 6)
-                    pt = round(g["theta"] * ps, 2)
-                    pv = round(g["vega"]  * ps, 2)
-                    port_d += pd; port_g += pg; port_t += pt; port_v += pv
-                    positions.append({**p, **g, "pos_size": ps,
-                        "p_delta": pd, "p_gamma": pg, "p_theta": pt, "p_vega": pv}
-                        if False else {
-                        "name": name, "type": opt_type, "strike": strike,
-                        "iv": iv_pct, "days": days, "lots": lots, "lot_size": lot_size,
-                        **g, "pos_size": ps,
-                        "p_delta": pd, "p_gamma": pg, "p_theta": pt, "p_vega": pv
+            strike   = _flt(request.form, f'strike_{i}')
+            iv_pct   = _flt(request.form, f'iv_{i}')
+            days     = _int(request.form, f'days_{i}')    # INTEGER
+            lots     = _int(request.form, f'lots_{i}')    # INTEGER
+            lot_size = _int(request.form, f'lot_size_{i}', 65)  # INTEGER
+            opt_type = request.form.get(f'type_{i}', 'call')
+
+            if strike and iv_pct and days and lots and lot_size and S:
+                T      = days / 365
+                sigma  = iv_pct / 100
+                mult   = lots * lot_size
+                try:
+                    res = bsm_greeks(S, strike, T, r, sigma, q)
+                    g   = res['call'] if opt_type == 'call' else res['put']
+                    positions.append({
+                        'name':    name or f'Pos {i+1}',
+                        'type':    opt_type,
+                        'strike':  strike,
+                        'iv':      iv_pct,
+                        'days':    days,
+                        'lots':    lots,
+                        'lot_size':lot_size,
+                        'price':   g['price'],
+                        'p_delta': round(g['delta'] * mult, 2),
+                        'p_gamma': round(g['gamma'] * mult, 4),
+                        'p_theta': round(g['theta'] * mult, 2),
+                        'p_vega':  round(g['vega']  * mult, 2),
                     })
-            except:
-                pass
+                except Exception:
+                    pass
             i += 1
-        portfolio_greeks = {
-            "delta": round(port_d, 2), "gamma": round(port_g, 6),
-            "theta": round(port_t, 2), "vega":  round(port_v, 2),
-            "dollar_delta": round(port_d * spot, 0) if spot else 0,
-        }
-        gd = risk_pct(port_d, LIMITS["delta"])
-        gg = risk_pct(port_g * 1000, LIMITS["gamma"])
-        gv = risk_pct(port_v, LIMITS["vega"])
-        gt = risk_pct(port_t, LIMITS["theta"])
-        gauges = {
-            "delta": {"pct": gd, "zone": risk_zone(gd), "limit": LIMITS["delta"], "value": round(port_d,2)},
-            "gamma": {"pct": gg, "zone": risk_zone(gg), "limit": LIMITS["gamma"], "value": round(port_g*1000,2)},
-            "vega":  {"pct": gv, "zone": risk_zone(gv), "limit": LIMITS["vega"],  "value": round(port_v,2)},
-            "theta": {"pct": gt, "zone": risk_zone(gt), "limit": LIMITS["theta"], "value": round(port_t,2)},
-        }
-        recs = get_recommendations(portfolio_greeks)
-    return render_template("portfolio.html",
-        positions=positions, portfolio=portfolio_greeks,
-        gauges=gauges, recs=recs, limits=LIMITS)
 
-# ── ARENA ─────────────────────────────────────────────────────────────────────
-@app.route("/arena")
+        if positions:
+            tot_delta = sum(p['p_delta'] for p in positions)
+            tot_gamma = sum(p['p_gamma'] for p in positions)
+            tot_theta = sum(p['p_theta'] for p in positions)
+            tot_vega  = sum(p['p_vega']  for p in positions)
+            portfolio_totals = {
+                'delta':       round(tot_delta, 2),
+                'gamma':       round(tot_gamma, 4),
+                'theta':       round(tot_theta, 2),
+                'vega':        round(tot_vega,  2),
+                'dollar_delta':round(tot_delta  * (S or 0), 0),
+            }
+
+            def _gauge(key, value, limit):
+                pct = min(round(abs(value) / limit * 100, 1), 999)
+                zone = 'breach' if pct >= 100 else 'caution' if pct >= 70 else 'safe'
+                return {'value': round(value, 2), 'limit': limit, 'pct': pct, 'zone': zone}
+
+            gauges = {
+                'delta': _gauge('delta', tot_delta, LIMITS['delta']),
+                'gamma': _gauge('gamma', tot_gamma * 1000, LIMITS['gamma']),
+                'vega':  _gauge('vega',  tot_vega,  LIMITS['vega']),
+                'theta': _gauge('theta', tot_theta, LIMITS['theta']),
+            }
+
+            # Recommendations
+            if abs(tot_delta) > LIMITS['delta']:
+                recs.append(f"🔴 Delta {round(tot_delta,1)} exceeds ±{LIMITS['delta']} limit — hedge with futures or offsetting options.")
+            elif abs(tot_delta) > LIMITS['delta'] * 0.7:
+                recs.append(f"🟡 Delta {round(tot_delta,1)} approaching limit — consider delta hedge.")
+            else:
+                recs.append(f"🟢 Delta {round(tot_delta,1)} within safe range.")
+
+            if abs(tot_gamma * 1000) > LIMITS['gamma']:
+                recs.append(f"🔴 Gamma exposure high — large spot moves will cause rapid delta change.")
+            elif abs(tot_gamma * 1000) > LIMITS['gamma'] * 0.7:
+                recs.append(f"🟡 Gamma approaching limit — be alert near expiry and large moves.")
+
+            if abs(tot_vega) > LIMITS['vega']:
+                recs.append(f"🔴 Vega ₹{round(tot_vega,0)} breached — portfolio highly sensitive to IV changes.")
+            elif abs(tot_vega) > LIMITS['vega'] * 0.7:
+                recs.append(f"🟡 Vega elevated — an IV spike could materially impact P&L.")
+            else:
+                recs.append(f"🟢 Vega ₹{round(tot_vega,0)} within limits.")
+
+            if tot_theta < -LIMITS['theta']:
+                recs.append(f"🔴 Theta ₹{round(tot_theta,0)}/day — heavy time decay. Reconsider net long options.")
+            elif tot_theta < -LIMITS['theta'] * 0.7:
+                recs.append(f"🟡 Theta ₹{round(tot_theta,0)}/day — meaningful daily bleed.")
+            elif tot_theta > 0:
+                recs.append(f"🟢 Theta ₹{round(tot_theta,0)}/day — net theta positive (premium seller).")
+
+    return render_template(
+        'portfolio.html',
+        positions=positions,
+        portfolio=portfolio_totals,
+        gauges=gauges,
+        recs=recs,
+        limits=LIMITS,
+    )
+
+
+@app.route('/arena')
 def arena():
-    return render_template("arena.html", levels=LEVEL_CONFIGS)
+    return render_template('arena.html')
 
-LEVEL_CONFIGS = {
-    1: {
-        "name": "Delta Rookie", "greek_focus": "Δ Delta",
-        "badge": "Delta Initiate", "xp_reward": 100,
-        "mission": "Keep portfolio delta between −20 and +20 for 8 moves.",
-        "tip": "Buy futures to ADD delta. Sell futures to REDUCE delta.",
-        "max_moves": 8, "win_score": 100,
-        "spot_vol": 0.03, "iv_drift": 0.01,
-        "delta_safe": 20, "delta_caution": 50,
-        "pts_safe": 15, "pts_caution": 5, "pts_breach": -15,
-        "start": {"spot": 23750, "strike": 23750, "iv": 20, "days": 5,
-                  "lot_size": 65, "lots": 1, "type": "call"},
-        "color": "#4cba76",
-    },
-    2: {
-        "name": "Delta Apprentice", "greek_focus": "Δ Delta",
-        "badge": "Delta Master", "xp_reward": 200,
-        "mission": "Manage 2 positions. Keep net delta between −50 and +50 for 10 moves.",
-        "tip": "You have a long call AND short put. Net delta can swing fast — stay alert.",
-        "max_moves": 10, "win_score": 120,
-        "spot_vol": 0.04, "iv_drift": 0.015,
-        "delta_safe": 50, "delta_caution": 80,
-        "pts_safe": 12, "pts_caution": 4, "pts_breach": -18,
-        "start": {"spot": 23750, "strike_call": 24000, "strike_put": 23500,
-                  "iv": 22, "days": 7, "lot_size": 65, "lots_call": 2, "lots_put": -2},
-        "color": "#3ec9c1",
-    },
-    3: {
-        "name": "Gamma Guardian", "greek_focus": "Γ Gamma",
-        "badge": "Gamma Guardian", "xp_reward": 300,
-        "mission": "Near-expiry ATM options. Keep delta in ±30 AND don't let gamma spike breach.",
-        "tip": "With 2 DTE, gamma is EXTREME. Even small spot moves cause huge delta swings. Rebalance faster.",
-        "max_moves": 8, "win_score": 100,
-        "spot_vol": 0.02, "iv_drift": 0.005,
-        "delta_safe": 30, "delta_caution": 55,
-        "pts_safe": 15, "pts_caution": 5, "pts_breach": -20,
-        "start": {"spot": 23750, "strike": 23750, "iv": 20, "days": 2,
-                  "lot_size": 65, "lots": 1, "type": "call"},
-        "color": "#d4a017",
-    },
-    4: {
-        "name": "Theta Harvester", "greek_focus": "Θ Theta",
-        "badge": "Time Collector", "xp_reward": 400,
-        "mission": "You sold a strangle. Collect theta daily. Keep delta in ±60. Survive 10 moves.",
-        "tip": "Short strangle = positive theta income every move. But a big spike will hurt fast.",
-        "max_moves": 10, "win_score": 80,
-        "spot_vol": 0.02, "iv_drift": 0.005,
-        "delta_safe": 60, "delta_caution": 85,
-        "pts_safe": 10, "pts_caution": 3, "pts_breach": -12,
-        "start": {"spot": 23750, "strike_call": 24200, "strike_put": 23300,
-                  "iv": 18, "days": 7, "lot_size": 65, "lots_call": -3, "lots_put": -3},
-        "color": "#e08c3c",
-    },
-    5: {
-        "name": "Vega Voyager", "greek_focus": "ν Vega",
-        "badge": "Volatility Navigator", "xp_reward": 500,
-        "mission": "IV will crush 2% per move. Manage your long vega before it destroys your P&L.",
-        "tip": "You're long vega. IV is high (35%) and will collapse. Sell calls to reduce vega exposure.",
-        "max_moves": 10, "win_score": 90,
-        "spot_vol": 0.025, "iv_drift": -0.02,
-        "delta_safe": 40, "delta_caution": 70,
-        "pts_safe": 12, "pts_caution": 4, "pts_breach": -15,
-        "start": {"spot": 23750, "strike": 23750, "iv": 35, "days": 10,
-                  "lot_size": 65, "lots": 2, "type": "call"},
-        "color": "#7c5cbf",
-    },
-    6: {
-        "name": "Greek Grandmaster", "greek_focus": "All Greeks",
-        "badge": "Greek God", "xp_reward": 1000,
-        "mission": "CRISIS MODE. Spot gapped −5%, IV spiked +20%, 3 DTE. All Greeks are red. Survive 12 moves.",
-        "tip": "Reduce gross exposure FIRST before trying to hedge individual Greeks. Survive above all else.",
-        "max_moves": 12, "win_score": 130,
-        "spot_vol": 0.045, "iv_drift": 0.025,
-        "delta_safe": 35, "delta_caution": 65,
-        "pts_safe": 15, "pts_caution": 5, "pts_breach": -20,
-        "start": {"spot": 22563, "strike_call": 23750, "strike_put": 23000,
-                  "iv": 40, "days": 3, "lot_size": 65,
-                  "lots_call": 2, "lots_put": -3},
-        "color": "#e05252",
-    },
-}
 
-def calc_multi_position(spot, rate, positions_cfg):
-    """Calculate aggregated Greeks for multi-position start state."""
-    port_delta = 0.0
-    pos_list = []
-    for p in positions_cfg:
-        g = bsm(spot, p["strike"], max(p["days"]/365, 0.001), rate, p["iv"]/100, p["type"])
-        if g:
-            ps = p["lot_size"] * p["lots"]
-            port_delta += g["delta"] * ps
-            pos_list.append({**p, **g, "ps": ps})
-    return round(port_delta, 2), pos_list
-
-@app.route("/api/arena/start", methods=["POST"])
-def arena_start():
-    data  = request.json or {}
-    level = int(data.get("level", 1))
-    cfg   = LEVEL_CONFIGS.get(level, LEVEL_CONFIGS[1])
-    s     = cfg["start"]
-    rate  = 0.0528
-
-    # Build starting positions
-    if "strike_call" in s and "strike_put" in s:
-        # Two-position start
-        positions = [
-            {"strike": s["strike_call"], "iv": s["iv"], "days": s["days"],
-             "lot_size": s["lot_size"], "lots": s.get("lots_call", 1), "type": "call"},
-            {"strike": s["strike_put"],  "iv": s["iv"], "days": s["days"],
-             "lot_size": s["lot_size"], "lots": s.get("lots_put", -1),  "type": "put"},
-        ]
-    else:
-        positions = [
-            {"strike": s["strike"], "iv": s["iv"], "days": s["days"],
-             "lot_size": s["lot_size"], "lots": s.get("lots", 1), "type": s.get("type","call")},
-        ]
-
-    spot = s["spot"]
-    port_delta, pos_list = calc_multi_position(spot, rate, positions)
-
-    # Compute primary option Greeks for display
-    primary = pos_list[0] if pos_list else {}
-
-    return jsonify({
-        "level": level, "spot": spot, "rate": rate * 100, "iv": s["iv"],
-        "days": s["days"], "futures_held": 0,
-        "positions": positions,
-        "port_delta": port_delta,
-        "delta": primary.get("delta", 0.5),
-        "gamma": primary.get("gamma", 0.001),
-        "theta": primary.get("theta", -10),
-        "vega":  primary.get("vega", 10),
-        "option_price": primary.get("price", 200),
-        "score": 100, "xp": 0, "move": 0,
-        "max_moves": cfg["max_moves"], "win_score": cfg["win_score"],
-        "log": [
-            f"🎮 Level {level}: {cfg['name']} — {cfg['mission']}",
-            f"💡 {cfg['tip']}",
-            f"📊 Starting portfolio delta: {port_delta:+.1f}",
-        ],
-        "game_over": False, "won": False,
-        "lot_size": s["lot_size"],
-        "cfg": {k: cfg[k] for k in ["delta_safe","delta_caution","pts_safe","pts_caution","pts_breach","greek_focus","badge","xp_reward","color","mission","name","win_score","max_moves"]},
-    })
-
-@app.route("/api/arena/move", methods=["POST"])
-def arena_move():
-    data         = request.json
-    level        = int(data.get("level", 1))
-    cfg          = LEVEL_CONFIGS.get(level, LEVEL_CONFIGS[1])
-    spot         = float(data["spot"])
-    rate         = float(data["rate"]) / 100
-    iv           = float(data["iv"]) / 100
-    days         = max(float(data["days"]) - 1, 0.5)
-    futures_held = int(data["futures_held"])
-    action       = data.get("action", "hold")
-    score        = int(data["score"])
-    xp           = int(data["xp"])
-    move         = int(data["move"]) + 1
-    max_moves    = int(data["max_moves"])
-    log          = list(data.get("log", []))
-    lot_size     = int(data.get("lot_size", 65))
-    positions    = data.get("positions", [])
-
-    # Market moves
-    # For level 4 (theta), keep spot mostly sideways but occasional spike
-    if level == 4 and random.random() > 0.25:
-        move_pct = random.uniform(-0.015, 0.015)
-    else:
-        move_pct = random.uniform(-cfg["spot_vol"], cfg["spot_vol"])
-
-    # Level 5: IV drift downward (IV crush)
-    iv_change = cfg["iv_drift"] + random.uniform(-0.005, 0.005)
-    new_iv    = max(iv + iv_change, 0.05)
-    new_spot  = round(spot * (1 + move_pct), 2)
-
-    # Action
-    if action == "buy_future":
-        futures_held += lot_size
-        action_desc = f"📈 Bought futures (+{lot_size} Δ)"
-        score -= 2
-    elif action == "sell_future":
-        futures_held -= lot_size
-        action_desc = f"📉 Sold futures (−{lot_size} Δ)"
-        score -= 2
-    else:
-        action_desc = "⏸ Held"
-
-    # Recalculate portfolio delta at new spot
-    port_delta = futures_held
-    primary = None
-    for p in positions:
-        g = bsm(new_spot, p["strike"], max(days/365, 0.001), rate, new_iv, p["type"])
-        if g:
-            ps = p["lot_size"] * p["lots"]
-            port_delta += g["delta"] * ps
-            if primary is None:
-                primary = g
-
-    port_delta = round(port_delta, 2)
-    g_display  = primary or {"delta":0.5,"gamma":0.001,"theta":-10,"vega":10,"price":200}
-
-    # Level 4 (Theta): add theta income to score
-    if level == 4 and primary:
-        theta_income = abs(sum(
-            bsm(new_spot, p["strike"], max(days/365,0.001), rate, new_iv, p["type"])["theta"]
-            * p["lot_size"] * p["lots"]
-            for p in positions
-            if bsm(new_spot, p["strike"], max(days/365,0.001), rate, new_iv, p["type"])
-        ))
-        score += int(theta_income * 0.5)  # bonus from theta
-
-    # Scoring
-    direction = "▲" if move_pct > 0 else "▼"
-    chg = round(abs(new_spot - spot), 0)
-    entry = f"Move {move}: Nifty {direction}₹{chg:.0f} → ₹{new_spot:,.0f}. {action_desc}."
-    if abs(port_delta) <= cfg["delta_safe"]:
-        score += cfg["pts_safe"]; xp += 20
-        entry += f" ✅ Δ={port_delta:+.1f} — safe! +{cfg['pts_safe']}pts"
-    elif abs(port_delta) <= cfg["delta_caution"]:
-        score += cfg["pts_caution"]; xp += 8
-        entry += f" 🟡 Δ={port_delta:+.1f} — caution. +{cfg['pts_caution']}pts"
-    else:
-        score -= abs(cfg["pts_breach"]); 
-        entry += f" 🔴 Δ={port_delta:+.1f} — BREACH! {cfg['pts_breach']}pts"
-
-    score = max(0, score)
-    log.append(entry)
-
-    game_over = move >= max_moves
-    won       = game_over and score >= cfg["win_score"]
-    if game_over:
-        if won:
-            xp += cfg["xp_reward"]
-            log.append(f"🏆 LEVEL {level} COMPLETE! Score: {score}. {cfg['badge']} badge earned! +{cfg['xp_reward']} XP")
-        else:
-            log.append(f"⚠️ Level ended. Score: {score}/{cfg['max_moves']*cfg['pts_safe']+100}. Need {cfg['win_score']}+ to pass.")
-
-    return jsonify({
-        "level": level, "spot": new_spot, "rate": rate*100,
-        "iv": round(new_iv*100, 2), "days": days,
-        "positions": positions, "futures_held": futures_held,
-        "port_delta": port_delta, "lot_size": lot_size,
-        "delta": g_display.get("delta",0.5), "gamma": g_display.get("gamma",0.001),
-        "theta": g_display.get("theta",-10), "vega": g_display.get("vega",10),
-        "option_price": g_display.get("price",200),
-        "score": score, "xp": xp, "move": move, "max_moves": max_moves,
-        "win_score": cfg["win_score"],
-        "log": log, "game_over": game_over, "won": won,
-        "cfg": {k: cfg[k] for k in ["delta_safe","delta_caution","pts_safe","pts_caution","pts_breach","greek_focus","badge","xp_reward","color","mission","name","win_score","max_moves"]},
-    })
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
