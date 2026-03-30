@@ -15,18 +15,19 @@
     <form method="POST" action="/scenarios" autocomplete="off">
       <div class="form-grid">
         <div class="form-group"><label>Spot Price (₹)</label><input type="number" name="spot" value="{{ form.spot if form.spot else '' }}" step="1" class="form-input" placeholder="e.g. 23750" /></div>
-        <div class="form-group"><label>Strike Price (₹)</label><input type="number" name="strike" value="{{ form.strike if form.strike else '' }}" step="50" class="form-input" placeholder="e.g. 23750" /></div>
+        <div class="form-group"><label>Strike Price (₹)</label><input type="number" name="strike" value="{{ form.strike if form.strike else '' }}" step="1" class="form-input" placeholder="e.g. 23750" /></div>
         <div class="form-group"><label>Days to Expiry</label><input type="number" name="days" value="{{ form.days if form.days else '' }}" step="1" min="1" class="form-input" placeholder="e.g. 5" /></div>
-        <div class="form-group"><label>Risk-Free Rate (%)</label><input type="number" name="rate" value="{{ form.rate if form.rate else '' }}" step="0.01" class="form-input" placeholder="e.g. 5.28" /></div>
-        <div class="form-group"><label>Implied Volatility (%)</label><input type="number" name="iv" value="{{ form.iv if form.iv else '' }}" step="0.1" class="form-input" placeholder="e.g. 22.5" /></div>
+        <div class="form-group"><label>Risk-Free Rate (%) <span class="form-hint">e.g. 5.28</span></label><input type="number" name="rate" value="{{ form.rate if form.rate else '' }}" step="0.01" class="form-input" placeholder="e.g. 5.28" /></div>
+        <div class="form-group"><label>Implied Volatility (%) <span class="form-hint">e.g. 22.5</span></label><input type="number" name="iv" value="{{ form.iv if form.iv else '' }}" step="0.1" class="form-input" placeholder="e.g. 22.5" /></div>
+        <div class="form-group"><label>Dividend Yield (%) <span class="form-hint">0 for index</span></label><input type="number" name="dividend" value="{{ form.dividend or 0 }}" step="0.01" class="form-input" placeholder="e.g. 1.5" /></div>
         <div class="form-group"><label>Option Type</label>
           <select name="option_type" class="form-input">
             <option value="call" {{ 'selected' if form.option_type=='call' }}>Call (CE)</option>
             <option value="put"  {{ 'selected' if form.option_type=='put'  }}>Put (PE)</option>
           </select>
         </div>
-        <div class="form-group"><label>Lot Size</label><input type="number" name="lot_size" value="{{ form.lot_size or 65 }}" class="form-input" /></div>
-        <div class="form-group"><label>Contracts</label><input type="number" name="contracts" value="{{ form.contracts or 1 }}" class="form-input" /></div>
+        <div class="form-group"><label>Lot Size <span class="form-hint">whole number</span></label><input type="number" name="lot_size" value="{{ form.lot_size or 65 }}" step="1" class="form-input" /></div>
+        <div class="form-group"><label>Contracts <span class="form-hint">whole number</span></label><input type="number" name="contracts" value="{{ form.contracts or 1 }}" step="1" class="form-input" /></div>
       </div>
       <button type="submit" class="btn btn-primary btn-full" style="margin-top:1.25rem">🌩 Run Scenarios</button>
     </form>
