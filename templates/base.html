@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Greek Gods Trading Arena{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="site-logo">
+      <span class="logo-symbol">⚡</span>
+      <span class="logo-text">Greek Gods <span class="gold">Arena</span></span>
+    </a>
+    <nav class="site-nav">
+      <a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Home</a>
+      <a href="/study" class="nav-link {% if request.endpoint == 'study' %}active{% endif %}">Study</a>
+      <a href="/calculator" class="nav-link {% if request.endpoint == 'calculator' %}active{% endif %}">Calculator</a>
+      <a href="/scenarios" class="nav-link {% if request.endpoint == 'scenarios' %}active{% endif %}">Scenarios</a>
+      <a href="/strategy-lab" class="nav-link nav-link-highlight {% if request.endpoint == 'strategy_lab' %}active{% endif %}">⚔️ Strategy Lab</a>
+      <a href="/portfolio" class="nav-link {% if request.endpoint == 'portfolio' %}active{% endif %}">Portfolio</a>
+      <a href="/arena" class="nav-link nav-arena {% if request.endpoint == 'arena' %}active{% endif %}">🏛️ Arena</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">☰</button>
+  </div>
+</header>
+
+<main class="site-main">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="footer-brand">⚡ Greek Gods Trading Arena</p>
+    <p class="footer-sub">Options Intelligence Platform — ORE2EQUITY Competition | IIM Sambalpur</p>
+    <p class="footer-disclaimer">For educational purposes only. Not financial advice.</p>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+document.getElementById('navToggle').addEventListener('click', function() {
+  document.querySelector('.site-nav').classList.toggle('open');
+});
+</script>
+</body>
+</html>
