@@ -1,0 +1,1323 @@
+{% extends "base.html" %}
+{% block title %}Strategy Lab — Greek Gods Trading Arena{% endblock %}
+{% block content %}
+
+<section class="page-hero">
+  <div class="hero-content">
+    <div class="hero-badge">⚔️ STRATEGY LAB</div>
+    <h1 class="hero-title">Options Strategy <span class="gold">Architect</span></h1>
+    <p class="hero-subtitle">Build, visualize, and compare multi-leg options strategies with live payoff diagrams</p>
+  </div>
+</section>
+
+<!-- Tab Navigation -->
+<div class="lab-nav">
+  <button class="lab-tab active" data-tab="builder">🏗️ Strategy Builder</button>
+  <button class="lab-tab" data-tab="library">📚 Strategy Library</button>
+  <button class="lab-tab" data-tab="compare">⚖️ Compare Strategies</button>
+  <button class="lab-tab" data-tab="scenarios">🎭 Scenario Simulator</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB 1: STRATEGY BUILDER
+═══════════════════════════════════════════════════════════ -->
+<div class="lab-panel active" id="tab-builder">
+  
+  <!-- Quick Strategy Selector -->
+  <div class="quick-select-bar">
+    <span class="qs-label">Quick Load:</span>
+    <div class="qs-buttons">
+      <button class="qs-btn bullish" onclick="loadPreset('longCall')">Long Call</button>
+      <button class="qs-btn bullish" onclick="loadPreset('bullCallSpread')">Bull Call Spread</button>
+      <button class="qs-btn bullish" onclick="loadPreset('bullPutSpread')">Bull Put Spread</button>
+      <button class="qs-btn bearish" onclick="loadPreset('longPut')">Long Put</button>
+      <button class="qs-btn bearish" onclick="loadPreset('bearPutSpread')">Bear Put Spread</button>
+      <button class="qs-btn bearish" onclick="loadPreset('bearCallSpread')">Bear Call Spread</button>
+      <button class="qs-btn neutral" onclick="loadPreset('ironCondor')">Iron Condor</button>
+      <button class="qs-btn neutral" onclick="loadPreset('ironButterfly')">Iron Butterfly</button>
+      <button class="qs-btn neutral" onclick="loadPreset('butterfly')">Butterfly</button>
+      <button class="qs-btn volatility" onclick="loadPreset('longStraddle')">Long Straddle</button>
+      <button class="qs-btn volatility" onclick="loadPreset('longStrangle')">Long Strangle</button>
+      <button class="qs-btn volatility" onclick="loadPreset('calendarSpread')">Calendar Spread</button>
+    </div>
+  </div>
+
+  <div class="builder-layout">
+    <!-- LEFT: Inputs -->
+    <div class="builder-left">
+      
+      <!-- Global Market Params -->
+      <div class="builder-card">
+        <h3 class="card-title">📊 Market Parameters</h3>
+        <div class="param-grid">
+          <div class="param-field">
+            <label>Underlying Price (₹)</label>
+            <input type="number" id="sp-underlying" value="22000" step="50" min="100">
+          </div>
+          <div class="param-field">
+            <label>Days to Expiry</label>
+            <input type="number" id="sp-dte" value="30" step="1" min="1">
+          </div>
+          <div class="param-field">
+            <label>Risk-Free Rate (%)</label>
+            <input type="number" id="sp-rate" value="6.5" step="0.1">
+          </div>
+          <div class="param-field">
+            <label>Implied Volatility (%)</label>
+            <input type="number" id="sp-iv" value="18" step="0.5" min="1">
+          </div>
+          <div class="param-field">
+            <label>Lot Size</label>
+            <input type="number" id="sp-lot" value="50" step="1" min="1">
+          </div>
+          <div class="param-field">
+            <label>Dividend Yield (%)</label>
+            <input type="number" id="sp-div" value="0" step="0.1">
+          </div>
+        </div>
+      </div>
+
+      <!-- Strategy Name -->
+      <div class="builder-card">
+        <div class="strategy-name-row">
+          <input type="text" id="strategy-name" placeholder="My Strategy Name..." class="strategy-name-input">
+          <span class="strategy-category-badge" id="strategy-category-badge">Custom</span>
+        </div>
+      </div>
+
+      <!-- Legs Table -->
+      <div class="builder-card">
+        <div class="legs-header">
+          <h3 class="card-title">🦵 Strategy Legs</h3>
+          <button class="btn-add-leg" onclick="addLeg()">+ Add Leg</button>
+        </div>
+        <div class="legs-table-wrap">
+          <table class="legs-table">
+            <thead>
+              <tr>
+                <th>Position</th>
+                <th>Type</th>
+                <th>Strike (₹)</th>
+                <th>Premium (₹)</th>
+                <th>Qty</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="legs-tbody">
+              <!-- Rows added by JS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="legs-actions">
+          <button class="btn-calculate" onclick="calculatePayoff()">⚡ Calculate Payoff</button>
+          <button class="btn-clear" onclick="clearLegs()">✕ Clear</button>
+        </div>
+      </div>
+
+      <!-- Risk Summary Card -->
+      <div class="builder-card" id="risk-summary" style="display:none;">
+        <h3 class="card-title">📋 Risk Summary</h3>
+        <div class="risk-grid">
+          <div class="risk-item profit">
+            <span class="risk-label">Max Profit</span>
+            <span class="risk-value" id="rs-maxprofit">—</span>
+          </div>
+          <div class="risk-item loss">
+            <span class="risk-label">Max Loss</span>
+            <span class="risk-value" id="rs-maxloss">—</span>
+          </div>
+          <div class="risk-item neutral">
+            <span class="risk-label">Net Premium</span>
+            <span class="risk-value" id="rs-premium">—</span>
+          </div>
+          <div class="risk-item neutral">
+            <span class="risk-label">Risk/Reward</span>
+            <span class="risk-value" id="rs-rr">—</span>
+          </div>
+        </div>
+        <div class="breakeven-row">
+          <span class="be-label">Breakeven(s):</span>
+          <span class="be-value" id="rs-breakevens">—</span>
+        </div>
+        <div class="greeks-row">
+          <div class="greek-chip"><span>Δ Delta</span><strong id="rs-delta">—</strong></div>
+          <div class="greek-chip"><span>Θ Theta/day</span><strong id="rs-theta">—</strong></div>
+          <div class="greek-chip"><span>ν Vega</span><strong id="rs-vega">—</strong></div>
+          <div class="greek-chip"><span>Γ Gamma</span><strong id="rs-gamma">—</strong></div>
+        </div>
+        <div class="strategy-insight" id="strategy-insight"></div>
+      </div>
+
+    </div><!-- /builder-left -->
+
+    <!-- RIGHT: Chart -->
+    <div class="builder-right">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3 class="card-title">📈 Payoff Diagram</h3>
+          <div class="chart-controls">
+            <label class="toggle-label">
+              <input type="checkbox" id="show-individual" checked>
+              Individual Legs
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="show-preexpiry">
+              Pre-Expiry (BSM)
+            </label>
+          </div>
+        </div>
+        <div class="chart-placeholder" id="payoff-chart-container">
+          <canvas id="payoffChart"></canvas>
+          <div class="chart-empty" id="chart-empty-msg">
+            <div class="chart-empty-icon">📊</div>
+            <p>Add legs and click Calculate Payoff to see your diagram</p>
+          </div>
+        </div>
+        <!-- Price Probe -->
+        <div class="price-probe" id="price-probe" style="display:none;">
+          <label>Probe Price: ₹<input type="number" id="probe-price" value="22000" step="50"></label>
+          <span class="probe-result" id="probe-result">P&L: —</span>
+        </div>
+        <!-- Scenario Grid -->
+        <div class="scenario-grid" id="scenario-grid" style="display:none;">
+          <h4 class="sg-title">P&L at Key Price Levels</h4>
+          <table class="sg-table" id="sg-table">
+            <thead><tr><th>Price</th><th>Move %</th><th>P&L (₹)</th><th>P&L Per Lot</th></tr></thead>
+            <tbody id="sg-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /builder-right -->
+
+  </div><!-- /builder-layout -->
+</div><!-- /tab-builder -->
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB 2: STRATEGY LIBRARY
+═══════════════════════════════════════════════════════════ -->
+<div class="lab-panel" id="tab-library">
+  
+  <div class="library-filters">
+    <button class="filter-btn active" data-filter="all">All Strategies</button>
+    <button class="filter-btn" data-filter="bullish">📈 Bullish</button>
+    <button class="filter-btn" data-filter="bearish">📉 Bearish</button>
+    <button class="filter-btn" data-filter="neutral">➡️ Neutral</button>
+    <button class="filter-btn" data-filter="volatility">⚡ Volatility</button>
+    <button class="filter-btn" data-filter="income">💰 Income</button>
+  </div>
+
+  <div class="library-grid" id="library-grid">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB 3: STRATEGY COMPARISON
+═══════════════════════════════════════════════════════════ -->
+<div class="lab-panel" id="tab-compare">
+  
+  <div class="compare-setup">
+    <h3 class="section-title">Compare Up to 3 Strategies</h3>
+    <div class="compare-selectors">
+      <div class="compare-slot">
+        <label>Strategy A</label>
+        <select id="cmp-a" class="cmp-select">
+          <option value="">— Select —</option>
+        </select>
+        <div class="slot-color slot-a"></div>
+      </div>
+      <div class="compare-vs">VS</div>
+      <div class="compare-slot">
+        <label>Strategy B</label>
+        <select id="cmp-b" class="cmp-select">
+          <option value="">— Select —</option>
+        </select>
+        <div class="slot-color slot-b"></div>
+      </div>
+      <div class="compare-vs">VS</div>
+      <div class="compare-slot">
+        <label>Strategy C (optional)</label>
+        <select id="cmp-c" class="cmp-select">
+          <option value="">— None —</option>
+        </select>
+        <div class="slot-color slot-c"></div>
+      </div>
+    </div>
+    <div class="compare-params">
+      <div class="param-field">
+        <label>Underlying (₹)</label>
+        <input type="number" id="cmp-spot" value="22000" step="50">
+      </div>
+      <div class="param-field">
+        <label>IV (%)</label>
+        <input type="number" id="cmp-iv" value="18" step="0.5">
+      </div>
+      <div class="param-field">
+        <label>DTE</label>
+        <input type="number" id="cmp-dte" value="30" step="1">
+      </div>
+      <div class="param-field">
+        <label>Lot Size</label>
+        <input type="number" id="cmp-lot" value="50" step="1">
+      </div>
+    </div>
+    <button class="btn-calculate" onclick="runComparison()">⚡ Compare Now</button>
+  </div>
+
+  <div id="compare-results" style="display:none;">
+    <div class="compare-chart-wrap">
+      <canvas id="compareChart"></canvas>
+    </div>
+    <div class="compare-table-wrap">
+      <table class="compare-table" id="compare-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th class="col-a">Strategy A</th>
+            <th class="col-b">Strategy B</th>
+            <th class="col-c" id="col-c-header" style="display:none;">Strategy C</th>
+          </tr>
+        </thead>
+        <tbody id="compare-tbody"></tbody>
+      </table>
+    </div>
+    <div class="compare-verdict" id="compare-verdict"></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAB 4: SCENARIO SIMULATOR
+═══════════════════════════════════════════════════════════ -->
+<div class="lab-panel" id="tab-scenarios">
+  
+  <div class="scenario-selector">
+    <h3 class="section-title">Choose a Market Scenario</h3>
+    <div class="scenario-cards-grid">
+      
+      <div class="scenario-card" data-scenario="bullish-breakout" onclick="loadScenario('bullish-breakout')">
+        <div class="sc-icon">🚀</div>
+        <h4>Bullish Breakout</h4>
+        <p>Strong upward move. +15% price rally, IV contracts as market rises confidently.</p>
+        <div class="sc-tags"><span class="tag bullish">Directional</span><span class="tag">Trend</span></div>
+      </div>
+
+      <div class="scenario-card" data-scenario="bearish-crash" onclick="loadScenario('bearish-crash')">
+        <div class="sc-icon">📉</div>
+        <h4>Bearish Crash</h4>
+        <p>Sudden market selloff. -20% drop with IV spike. Classic fear-driven correction.</p>
+        <div class="sc-tags"><span class="tag bearish">Crash</span><span class="tag">High IV</span></div>
+      </div>
+
+      <div class="scenario-card" data-scenario="range-bound" onclick="loadScenario('range-bound')">
+        <div class="sc-icon">↔️</div>
+        <h4>Range-Bound Decay</h4>
+        <p>Market stays flat. Price oscillates ±3%. Theta accelerates near expiry.</p>
+        <div class="sc-tags"><span class="tag neutral">Neutral</span><span class="tag">Theta Play</span></div>
+      </div>
+
+      <div class="scenario-card" data-scenario="iv-spike" onclick="loadScenario('iv-spike')">
+        <div class="sc-icon">⚡</div>
+        <h4>IV Spike (Pre-Event)</h4>
+        <p>Earnings/RBI announcement approaching. IV jumps +40%. Perfect for long vega trades.</p>
+        <div class="sc-tags"><span class="tag volatility">Event-Driven</span><span class="tag">Long Vega</span></div>
+      </div>
+
+      <div class="scenario-card" data-scenario="iv-crush" onclick="loadScenario('iv-crush')">
+        <div class="sc-icon">💥</div>
+        <h4>IV Crush (Post-Event)</h4>
+        <p>After the event. IV collapses -50%. Short vega strategies shine here.</p>
+        <div class="sc-tags"><span class="tag income">Income</span><span class="tag">Short Vega</span></div>
+      </div>
+
+      <div class="scenario-card" data-scenario="banknifty-weekly" onclick="loadScenario('banknifty-weekly')">
+        <div class="sc-icon">🏦</div>
+        <h4>Bank Nifty Weekly</h4>
+        <p>Classic Thursday entry on weekly expiry. 6 days of extreme theta decay management.</p>
+        <div class="sc-tags"><span class="tag income">Weekly</span><span class="tag">India</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scenario Result Area -->
+  <div id="scenario-result-area" style="display:none;">
+    <div class="scenario-result-header">
+      <h3 id="scenario-result-title">Scenario: —</h3>
+      <button class="btn-clear" onclick="clearScenario()">✕ Clear</button>
+    </div>
+
+    <div class="scenario-sim-layout">
+      <!-- Left: Conditions & Selection -->
+      <div class="sim-left">
+        <div class="sim-card">
+          <h4>Market Conditions</h4>
+          <div id="sim-conditions"></div>
+        </div>
+        <div class="sim-card">
+          <h4>Strategy Selection</h4>
+          <p class="sim-hint">Choose the best strategy for this scenario:</p>
+          <div id="sim-strategy-options"></div>
+        </div>
+      </div>
+      <!-- Right: Analysis -->
+      <div class="sim-right">
+        <div class="sim-card">
+          <h4>📈 Payoff Under This Scenario</h4>
+          <canvas id="simChart" height="280"></canvas>
+        </div>
+        <div class="sim-card">
+          <h4>📚 Learning Points</h4>
+          <div id="sim-learning"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- P&L Matrix -->
+    <div class="sim-card" id="sim-matrix-card">
+      <h4>📊 P&L Matrix (Price × Time)</h4>
+      <div class="matrix-scroll">
+        <table class="matrix-table" id="sim-matrix"></table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tab-scenarios -->
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     CHART.JS CDN + ALL JAVASCRIPT
+═══════════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+
+/* ─────────────────────────────────────────────
+   GLOBAL STATE
+───────────────────────────────────────────── */
+let legs = [];
+let payoffChartInstance = null;
+let compareChartInstance = null;
+let simChartInstance = null;
+let legIdCounter = 0;
+
+/* ─────────────────────────────────────────────
+   TAB SWITCHING
+───────────────────────────────────────────── */
+document.querySelectorAll('.lab-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.lab-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.lab-panel').forEach(p => p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    if (this.dataset.tab === 'library') renderLibrary('all');
+    if (this.dataset.tab === 'compare') populateCompareSelects();
+  });
+});
+
+/* ─────────────────────────────────────────────
+   STRATEGY DATABASE (12 strategies)
+───────────────────────────────────────────── */
+const STRATEGY_DB = {
+  longCall: {
+    name: "Long Call",
+    category: "bullish",
+    outlook: "Strongly Bullish",
+    iv_outlook: "Low to Medium",
+    description: "The most basic bullish strategy. Provides leveraged upside exposure with limited downside risk limited to the premium paid.",
+    use_case: "Expecting strong upward movement. Great before a bullish breakout.",
+    max_profit: "Unlimited",
+    max_loss: "Net Premium Paid",
+    risk_type: "Debit",
+    greeks_profile: "Positive Delta, Positive Gamma, Negative Theta, Positive Vega",
+    legs: [
+      { position: "buy", type: "call", strike_offset: 0, premium_pct: 1.4 }
+    ]
+  },
+  bullCallSpread: {
+    name: "Bull Call Spread",
+    category: "bullish",
+    outlook: "Moderately Bullish",
+    iv_outlook: "Low",
+    description: "Buy lower strike call + sell higher strike call. Reduces cost vs naked long call by capping upside. Defines both max profit and max loss.",
+    use_case: "Moderately bullish with limited budget. Reduces theta risk vs long call.",
+    max_profit: "(Width − Net Premium) × Lot",
+    max_loss: "Net Premium Paid",
+    risk_type: "Debit",
+    greeks_profile: "Positive Delta, Reduced Gamma, Less Theta, Less Vega",
+    legs: [
+      { position: "buy", type: "call", strike_offset: 0, premium_pct: 1.4 },
+      { position: "sell", type: "call", strike_offset: 2.3, premium_pct: 0.55 }
+    ]
+  },
+  bullPutSpread: {
+    name: "Bull Put Spread",
+    category: "bullish",
+    outlook: "Moderately Bullish",
+    iv_outlook: "High",
+    description: "Sell higher strike put + buy lower strike put. Credit strategy — profit from time decay and price staying above short put strike.",
+    use_case: "Bullish in high IV environment. Earn premium with defined risk.",
+    max_profit: "Net Premium Received",
+    max_loss: "(Width − Net Premium) × Lot",
+    risk_type: "Credit",
+    greeks_profile: "Positive Delta, Positive Theta, Negative Vega",
+    legs: [
+      { position: "sell", type: "put", strike_offset: -0.9, premium_pct: 0.91 },
+      { position: "buy", type: "put", strike_offset: -3.2, premium_pct: 0.36 }
+    ]
+  },
+  longPut: {
+    name: "Long Put",
+    category: "bearish",
+    outlook: "Strongly Bearish",
+    iv_outlook: "Low to Medium",
+    description: "Buy a put option. Leveraged exposure to downside. Limited risk (premium paid), large profit potential if market falls.",
+    use_case: "Portfolio hedge or directional bearish bet. Best before a crash or correction.",
+    max_profit: "Strike − Premium (if stock → 0)",
+    max_loss: "Net Premium Paid",
+    risk_type: "Debit",
+    greeks_profile: "Negative Delta, Positive Gamma, Negative Theta, Positive Vega",
+    legs: [
+      { position: "buy", type: "put", strike_offset: 0, premium_pct: 1.27 }
+    ]
+  },
+  bearPutSpread: {
+    name: "Bear Put Spread",
+    category: "bearish",
+    outlook: "Moderately Bearish",
+    iv_outlook: "Low",
+    description: "Buy higher strike put + sell lower strike put. Defined risk bearish play with lower cost than naked long put.",
+    use_case: "Moderately bearish. Want defined risk with lower premium outflow.",
+    max_profit: "(Width − Net Premium) × Lot",
+    max_loss: "Net Premium Paid",
+    risk_type: "Debit",
+    greeks_profile: "Negative Delta, Positive Gamma, Negative Theta, Positive Vega",
+    legs: [
+      { position: "buy", type: "put", strike_offset: 0, premium_pct: 1.27 },
+      { position: "sell", type: "put", strike_offset: -2.3, premium_pct: 0.5 }
+    ]
+  },
+  bearCallSpread: {
+    name: "Bear Call Spread",
+    category: "bearish",
+    outlook: "Moderately Bearish",
+    iv_outlook: "High",
+    description: "Sell lower strike call + buy higher strike call. Credit strategy profiting from price staying below short call strike.",
+    use_case: "Bearish in high IV. Earn premium with capped risk. Classic after a rally that seems overdone.",
+    max_profit: "Net Premium Received",
+    max_loss: "(Width − Net Premium) × Lot",
+    risk_type: "Credit",
+    greeks_profile: "Negative Delta, Positive Theta, Negative Vega",
+    legs: [
+      { position: "sell", type: "call", strike_offset: 1, premium_pct: 0.68 },
+      { position: "buy", type: "call", strike_offset: 3.3, premium_pct: 0.23 }
+    ]
+  },
+  ironCondor: {
+    name: "Iron Condor",
+    category: "neutral",
+    outlook: "Range-Bound",
+    iv_outlook: "High",
+    description: "Bull put spread + bear call spread combined. Profits from IV contraction and price staying within defined range. Popular income strategy.",
+    use_case: "Low volatility expectation. Earn premium in sideways markets. Classic for monthly index expiries.",
+    max_profit: "Total Net Premium Received",
+    max_loss: "(Max Spread Width − Net Premium) × Lot",
+    risk_type: "Credit",
+    greeks_profile: "Near-Zero Delta, Positive Theta, Negative Vega, Negative Gamma",
+    legs: [
+      { position: "sell", type: "put", strike_offset: -2.3, premium_pct: 0.45 },
+      { position: "buy", type: "put", strike_offset: -4.5, premium_pct: 0.18 },
+      { position: "sell", type: "call", strike_offset: 2.3, premium_pct: 0.41 },
+      { position: "buy", type: "call", strike_offset: 4.5, premium_pct: 0.16 }
+    ]
+  },
+  ironButterfly: {
+    name: "Iron Butterfly",
+    category: "neutral",
+    outlook: "Very Low Volatility",
+    iv_outlook: "High",
+    description: "Short straddle + protective wings. Higher premium than condor but narrower profit zone. Profits when price pins near ATM strike.",
+    use_case: "Expecting stock to settle exactly near current price. Maximum income strategy.",
+    max_profit: "Total Net Premium Received",
+    max_loss: "(Wing Width − Net Premium) × Lot",
+    risk_type: "Credit",
+    greeks_profile: "Near-Zero Delta, High Positive Theta, High Negative Vega",
+    legs: [
+      { position: "sell", type: "put", strike_offset: 0, premium_pct: 1.27 },
+      { position: "sell", type: "call", strike_offset: 0, premium_pct: 1.36 },
+      { position: "buy", type: "put", strike_offset: -2.3, premium_pct: 0.5 },
+      { position: "buy", type: "call", strike_offset: 2.3, premium_pct: 0.55 }
+    ]
+  },
+  butterfly: {
+    name: "Butterfly Spread",
+    category: "neutral",
+    outlook: "Very Low Volatility",
+    iv_outlook: "Low",
+    description: "Buy 1 lower + sell 2 middle + buy 1 higher (all calls or puts). Low cost, high max profit if price pins exactly at middle strike.",
+    use_case: "Expecting very precise price target. Cheap way to bet on pinning.",
+    max_profit: "(Middle − Lower) − Net Premium",
+    max_loss: "Net Premium Paid (very small)",
+    risk_type: "Debit",
+    greeks_profile: "Near-Zero Delta, Positive Theta near peak, Low Vega",
+    legs: [
+      { position: "buy", type: "call", strike_offset: -2.3, premium_pct: 2.45 },
+      { position: "sell", type: "call", strike_offset: 0, premium_pct: 1.36, qty: 2 },
+      { position: "buy", type: "call", strike_offset: 2.3, premium_pct: 0.55 }
+    ]
+  },
+  longStraddle: {
+    name: "Long Straddle",
+    category: "volatility",
+    outlook: "High Volatility Expected",
+    iv_outlook: "Low (buy when IV is low)",
+    description: "Buy ATM call + buy ATM put. Profits from large moves in either direction. Requires move > total premium to profit.",
+    use_case: "Before earnings, RBI policy, or any binary event where direction is uncertain.",
+    max_profit: "Unlimited (upside), Large (downside)",
+    max_loss: "Total Premium Paid",
+    risk_type: "Debit",
+    greeks_profile: "Near-Zero Delta, Positive Gamma, Negative Theta, High Positive Vega",
+    legs: [
+      { position: "buy", type: "call", strike_offset: 0, premium_pct: 1.36 },
+      { position: "buy", type: "put", strike_offset: 0, premium_pct: 1.27 }
+    ]
+  },
+  longStrangle: {
+    name: "Long Strangle",
+    category: "volatility",
+    outlook: "Very High Volatility Expected",
+    iv_outlook: "Low",
+    description: "Buy OTM call + buy OTM put. Cheaper than straddle but needs larger move to profit. Better when expecting extreme moves.",
+    use_case: "Expecting huge move but want cheaper entry than straddle. Pre-earnings play.",
+    max_profit: "Unlimited (upside), Large (downside)",
+    max_loss: "Total Premium Paid (less than straddle)",
+    risk_type: "Debit",
+    greeks_profile: "Near-Zero Delta, Positive Gamma, Negative Theta, Positive Vega",
+    legs: [
+      { position: "buy", type: "call", strike_offset: 1.4, premium_pct: 0.68 },
+      { position: "buy", type: "put", strike_offset: -1.4, premium_pct: 0.64 }
+    ]
+  },
+  calendarSpread: {
+    name: "Calendar Spread",
+    category: "volatility",
+    outlook: "Neutral short-term, Bullish long-term",
+    iv_outlook: "Low (buy) / Rising",
+    description: "Sell near-term option + buy longer-term option (same strike). Profits from time decay differential. Near-term decays faster.",
+    use_case: "Expecting stock near strike until near-term expiry. Also plays volatility term structure.",
+    max_profit: "When near-term expires worthless",
+    max_loss: "Net Premium Paid",
+    risk_type: "Debit",
+    greeks_profile: "Near-Zero Delta, Positive Theta, Positive Vega",
+    legs: [
+      { position: "sell", type: "call", strike_offset: 0, premium_pct: 0.68, dte_note: "near-term" },
+      { position: "buy", type: "call", strike_offset: 0, premium_pct: 1.36, dte_note: "far-term" }
+    ]
+  }
+};
+
+const CATEGORY_COLORS = {
+  bullish: '#22c55e',
+  bearish: '#ef4444',
+  neutral: '#a78bfa',
+  volatility: '#f59e0b',
+  income: '#06b6d4'
+};
+
+/* ─────────────────────────────────────────────
+   LEG MANAGEMENT
+───────────────────────────────────────────── */
+function addLeg(position='buy', type='call', strike='', premium='', qty=1) {
+  const spot = parseFloat(document.getElementById('sp-underlying').value) || 22000;
+  const id = ++legIdCounter;
+  legs.push({ id, position, type, strike: strike || spot, premium: premium || 300, qty });
+  renderLegs();
+}
+
+function removeLeg(id) {
+  legs = legs.filter(l => l.id !== id);
+  renderLegs();
+}
+
+function renderLegs() {
+  const tbody = document.getElementById('legs-tbody');
+  if (legs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-legs">No legs added yet. Use Quick Load or add manually.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = legs.map(leg => {
+    const signClass = leg.position === 'buy' ? 'pos-buy' : 'pos-sell';
+    return '<tr class="leg-row">' +
+      '<td><select class="leg-select ' + signClass + '" onchange="updateLeg(' + leg.id + ',\'position\',this.value)">' +
+        '<option value="buy"' + (leg.position==='buy'?' selected':'') + '>▲ BUY</option>' +
+        '<option value="sell"' + (leg.position==='sell'?' selected':'') + '>▼ SELL</option>' +
+      '</select></td>' +
+      '<td><select class="leg-select" onchange="updateLeg(' + leg.id + ',\'type\',this.value)">' +
+        '<option value="call"' + (leg.type==='call'?' selected':'') + '>CALL</option>' +
+        '<option value="put"' + (leg.type==='put'?' selected':'') + '>PUT</option>' +
+      '</select></td>' +
+      '<td><input type="number" class="leg-input" value="' + leg.strike + '" step="50" onchange="updateLeg(' + leg.id + ',\'strike\',+this.value)"></td>' +
+      '<td><input type="number" class="leg-input" value="' + leg.premium + '" step="1" onchange="updateLeg(' + leg.id + ',\'premium\',+this.value)"></td>' +
+      '<td><input type="number" class="leg-input qty-input" value="' + leg.qty + '" step="1" min="1" onchange="updateLeg(' + leg.id + ',\'qty\',+this.value)"></td>' +
+      '<td><button class="leg-remove" onclick="removeLeg(' + leg.id + ')">✕</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function updateLeg(id, field, value) {
+  const leg = legs.find(l => l.id === id);
+  if (leg) leg[field] = value;
+}
+
+function clearLegs() {
+  legs = [];
+  legIdCounter = 0;
+  renderLegs();
+  document.getElementById('risk-summary').style.display = 'none';
+  document.getElementById('chart-empty-msg').style.display = 'flex';
+  document.getElementById('price-probe').style.display = 'none';
+  document.getElementById('scenario-grid').style.display = 'none';
+  if (payoffChartInstance) { payoffChartInstance.destroy(); payoffChartInstance = null; }
+}
+
+/* ─────────────────────────────────────────────
+   PRESET LOADER
+───────────────────────────────────────────── */
+function loadPreset(key) {
+  const s = STRATEGY_DB[key];
+  if (!s) return;
+  const spot = parseFloat(document.getElementById('sp-underlying').value) || 22000;
+  
+  legs = [];
+  legIdCounter = 0;
+  
+  s.legs.forEach(legDef => {
+    const id = ++legIdCounter;
+    const strike = Math.round(spot * (1 + (legDef.strike_offset || 0) / 100) / 50) * 50;
+    const premium = Math.round(spot * legDef.premium_pct / 100);
+    legs.push({ id, position: legDef.position, type: legDef.type, strike, premium, qty: legDef.qty || 1 });
+  });
+  
+  document.getElementById('strategy-name').value = s.name;
+  const badge = document.getElementById('strategy-category-badge');
+  badge.textContent = s.category.charAt(0).toUpperCase() + s.category.slice(1);
+  badge.className = 'strategy-category-badge cat-' + s.category;
+  
+  renderLegs();
+  calculatePayoff();
+}
+
+/* ─────────────────────────────────────────────
+   PAYOFF CALCULATION ENGINE
+───────────────────────────────────────────── */
+function legPayoff(leg, S) {
+  const K = leg.strike;
+  const P = leg.premium;
+  const qty = leg.qty || 1;
+  let intrinsic = 0;
+  if (leg.type === 'call') intrinsic = Math.max(0, S - K);
+  else intrinsic = Math.max(0, K - S);
+  
+  const pnl = leg.position === 'buy' ? (intrinsic - P) : (P - intrinsic);
+  return pnl * qty;
+}
+
+function calculatePayoff() {
+  if (legs.length === 0) { alert('Please add at least one leg first.'); return; }
+  
+  const spot = parseFloat(document.getElementById('sp-underlying').value) || 22000;
+  const lotSize = parseInt(document.getElementById('sp-lot').value) || 50;
+  
+  // Price range: ±30% from spot
+  const lo = spot * 0.70;
+  const hi = spot * 1.30;
+  const steps = 200;
+  const prices = [];
+  const totalPayoffs = [];
+  const legPayoffs = legs.map(() => []);
+  
+  for (let i = 0; i <= steps; i++) {
+    const S = lo + (hi - lo) * i / steps;
+    prices.push(S);
+    let total = 0;
+    legs.forEach((leg, idx) => {
+      const p = legPayoff(leg, S);
+      legPayoffs[idx].push(p * lotSize);
+      total += p;
+    });
+    totalPayoffs.push(total * lotSize);
+  }
+  
+  // Stats
+  const maxProfit = Math.max(...totalPayoffs);
+  const maxLoss = Math.min(...totalPayoffs);
+  const netPremium = legs.reduce((sum, l) => {
+    const sign = l.position === 'buy' ? -1 : 1;
+    return sum + sign * l.premium * (l.qty || 1);
+  }, 0);
+  
+  // Breakevens
+  const breakevens = [];
+  for (let i = 1; i < totalPayoffs.length; i++) {
+    if ((totalPayoffs[i-1] < 0 && totalPayoffs[i] >= 0) || (totalPayoffs[i-1] >= 0 && totalPayoffs[i] < 0)) {
+      const be = prices[i-1] + (0 - totalPayoffs[i-1]) / (totalPayoffs[i] - totalPayoffs[i-1]) * (prices[i] - prices[i-1]);
+      breakevens.push(Math.round(be));
+    }
+  }
+  
+  // Update Risk Summary
+  const rr = maxLoss !== 0 ? Math.abs(maxProfit / maxLoss).toFixed(2) : '∞';
+  document.getElementById('rs-maxprofit').textContent = maxProfit >= 1e6 ? 'Unlimited' : '₹' + fmt(maxProfit);
+  document.getElementById('rs-maxloss').textContent = maxLoss <= -1e6 ? 'Unlimited' : '₹' + fmt(maxLoss);
+  document.getElementById('rs-premium').textContent = (netPremium >= 0 ? 'Credit ₹' : 'Debit ₹') + fmt(Math.abs(netPremium * lotSize));
+  document.getElementById('rs-rr').textContent = rr;
+  document.getElementById('rs-breakevens').textContent = breakevens.length ? breakevens.map(b => '₹' + fmt(b)).join(' | ') : 'None in range';
+  
+  // Approximate Greeks (delta via finite diff at spot)
+  const dS = spot * 0.001;
+  const pHigh = legs.reduce((s, l) => s + legPayoff(l, spot + dS), 0);
+  const pLow = legs.reduce((s, l) => s + legPayoff(l, spot - dS), 0);
+  const delta = (pHigh - pLow) / (2 * dS);
+  document.getElementById('rs-delta').textContent = delta.toFixed(3);
+  document.getElementById('rs-theta').textContent = (netPremium * lotSize / 30).toFixed(0);
+  document.getElementById('rs-vega').textContent = (netPremium * lotSize * 0.1).toFixed(0);
+  document.getElementById('rs-gamma').textContent = ((pHigh + pLow - 2 * legs.reduce((s,l) => s+legPayoff(l,spot), 0)) / (dS*dS)).toFixed(6);
+  
+  // Strategy insight
+  const insight = getStrategyInsight(netPremium, maxProfit, maxLoss, breakevens);
+  document.getElementById('strategy-insight').textContent = insight;
+  document.getElementById('risk-summary').style.display = 'block';
+  
+  // Draw chart
+  drawPayoffChart(prices, totalPayoffs, legPayoffs, spot);
+  
+  // Scenario table
+  drawScenarioGrid(spot, totalPayoffs, prices, lotSize);
+  
+  // Price probe
+  document.getElementById('price-probe').style.display = 'flex';
+  document.getElementById('probe-price').value = spot;
+  document.getElementById('probe-price').addEventListener('input', function() {
+    const probeS = parseFloat(this.value);
+    const pnl = legs.reduce((s, l) => s + legPayoff(l, probeS), 0) * lotSize;
+    const el = document.getElementById('probe-result');
+    el.textContent = 'P&L: ' + (pnl >= 0 ? '+' : '') + '₹' + fmt(pnl);
+    el.style.color = pnl >= 0 ? '#22c55e' : '#ef4444';
+  });
+}
+
+function drawPayoffChart(prices, totalPayoffs, legPayoffs, spot) {
+  const ctx = document.getElementById('payoffChart').getContext('2d');
+  document.getElementById('chart-empty-msg').style.display = 'none';
+  
+  if (payoffChartInstance) payoffChartInstance.destroy();
+  
+  const showIndividual = document.getElementById('show-individual').checked;
+  const legColors = ['#60a5fa','#f472b6','#34d399','#fb923c','#a78bfa'];
+  
+  const datasets = [{
+    label: 'Total P&L',
+    data: prices.map((p, i) => ({ x: p, y: totalPayoffs[i] })),
+    borderColor: '#d4a017',
+    borderWidth: 3,
+    fill: {
+      target: { value: 0 },
+      above: 'rgba(34,197,94,0.15)',
+      below: 'rgba(239,68,68,0.15)'
+    },
+    tension: 0.1,
+    pointRadius: 0
+  }];
+  
+  if (showIndividual && legs.length > 1) {
+    legs.forEach((leg, idx) => {
+      datasets.push({
+        label: (leg.position === 'buy' ? '▲' : '▼') + ' ' + leg.type.toUpperCase() + ' ' + leg.strike,
+        data: prices.map((p, i) => ({ x: p, y: legPayoffs[idx][i] })),
+        borderColor: legColors[idx % legColors.length],
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0
+      });
+    });
+  }
+  
+  // Zero line + spot annotation
+  datasets.push({
+    label: 'Zero',
+    data: prices.map(p => ({ x: p, y: 0 })),
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderDash: [2,2],
+    fill: false,
+    pointRadius: 0
+  });
+  
+  payoffChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#c8c8d4', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ₹' + fmt(ctx.parsed.y),
+            title: ctx => 'Price: ₹' + fmt(ctx[0].parsed.x)
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Underlying Price (₹)', color: '#8888a0' },
+          ticks: { color: '#8888a0', callback: v => '₹' + fmt(v) },
+          grid: { color: 'rgba(255,255,255,0.05)' }
+        },
+        y: {
+          title: { display: true, text: 'Profit / Loss (₹)', color: '#8888a0' },
+          ticks: { color: '#8888a0', callback: v => (v >= 0 ? '+' : '') + '₹' + fmt(v) },
+          grid: { color: 'rgba(255,255,255,0.08)' }
+        }
+      }
+    }
+  });
+}
+
+function drawScenarioGrid(spot, totalPayoffs, prices, lotSize) {
+  const levels = [-20, -15, -10, -5, -3, 0, 3, 5, 10, 15, 20];
+  const tbody = document.getElementById('sg-tbody');
+  tbody.innerHTML = levels.map(pct => {
+    const S = spot * (1 + pct / 100);
+    const pnl = legs.reduce((s, l) => s + legPayoff(l, S), 0) * lotSize;
+    const cls = pnl >= 0 ? 'pnl-green' : 'pnl-red';
+    return '<tr>' +
+      '<td>₹' + fmt(S) + '</td>' +
+      '<td>' + (pct >= 0 ? '+' : '') + pct + '%</td>' +
+      '<td class="' + cls + '">' + (pnl >= 0 ? '+' : '') + '₹' + fmt(pnl) + '</td>' +
+      '<td class="' + cls + '">' + (pnl >= 0 ? '+' : '') + '₹' + fmt(pnl) + '</td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('scenario-grid').style.display = 'block';
+}
+
+function getStrategyInsight(netPremium, maxProfit, maxLoss, breakevens) {
+  if (netPremium < 0) {
+    return "Debit strategy: You pay upfront. Time decay works against you. Need a significant move to profit. Best used when you expect volatility or a directional move.";
+  } else if (netPremium > 0) {
+    return "Credit strategy: You collect premium upfront. Time decay works FOR you. Profit if market stays within range. Manage risk if price approaches breakevens.";
+  }
+  return "Neutral premium strategy. P&L depends entirely on price movement.";
+}
+
+function fmt(n) {
+  if (isNaN(n)) return '—';
+  if (Math.abs(n) >= 100000) return (n/100000).toFixed(1) + 'L';
+  if (Math.abs(n) >= 1000) return (n/1000).toFixed(1) + 'K';
+  return Math.round(n).toLocaleString('en-IN');
+}
+
+/* ─────────────────────────────────────────────
+   STRATEGY LIBRARY
+───────────────────────────────────────────── */
+function renderLibrary(filter) {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === filter);
+  });
+  
+  const grid = document.getElementById('library-grid');
+  const entries = Object.entries(STRATEGY_DB).filter(([k, s]) => {
+    if (filter === 'all') return true;
+    if (filter === 'income') return s.risk_type === 'Credit';
+    return s.category === filter;
+  });
+  
+  grid.innerHTML = entries.map(([key, s]) => {
+    const color = CATEGORY_COLORS[s.category] || '#888';
+    const legs_html = s.legs.map(l => {
+      const sign = l.position === 'buy' ? '▲ BUY' : '▼ SELL';
+      const qty = l.qty ? 'x' + l.qty : '';
+      return '<span class="lib-leg ' + l.position + '">' + sign + ' ' + l.type.toUpperCase() + qty + '</span>';
+    }).join('');
+    
+    return '<div class="lib-card" style="border-top-color:' + color + '">' +
+      '<div class="lib-card-header">' +
+        '<h4 class="lib-name">' + s.name + '</h4>' +
+        '<span class="lib-cat" style="color:' + color + '">' + s.category + '</span>' +
+      '</div>' +
+      '<p class="lib-desc">' + s.description + '</p>' +
+      '<div class="lib-legs">' + legs_html + '</div>' +
+      '<div class="lib-metrics">' +
+        '<div class="lib-metric"><span>Max Profit</span><strong class="green">' + s.max_profit + '</strong></div>' +
+        '<div class="lib-metric"><span>Max Loss</span><strong class="red">' + s.max_loss + '</strong></div>' +
+        '<div class="lib-metric"><span>Type</span><strong>' + s.risk_type + '</strong></div>' +
+      '</div>' +
+      '<div class="lib-meta">' +
+        '<div><span>📈 Outlook:</span> ' + s.outlook + '</div>' +
+        '<div><span>⚡ IV:</span> ' + s.iv_outlook + '</div>' +
+        '<div><span>🎯 Use:</span> ' + s.use_case + '</div>' +
+      '</div>' +
+      '<div class="lib-greeks">Greeks: ' + s.greeks_profile + '</div>' +
+      '<button class="lib-load-btn" onclick="loadAndSwitch(\'' + key + '\')">Load in Builder →</button>' +
+    '</div>';
+  }).join('');
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    renderLibrary(this.dataset.filter);
+  });
+});
+
+function loadAndSwitch(key) {
+  document.querySelector('[data-tab="builder"]').click();
+  setTimeout(() => loadPreset(key), 100);
+}
+
+/* ─────────────────────────────────────────────
+   COMPARISON ENGINE
+───────────────────────────────────────────── */
+function populateCompareSelects() {
+  const options = '<option value="">— Select —</option>' + 
+    Object.entries(STRATEGY_DB).map(([k, s]) => '<option value="' + k + '">' + s.name + '</option>').join('');
+  ['cmp-a', 'cmp-b', 'cmp-c'].forEach(id => {
+    document.getElementById(id).innerHTML = id === 'cmp-c' 
+      ? '<option value="">— None —</option>' + Object.entries(STRATEGY_DB).map(([k,s]) => '<option value="' + k + '">' + s.name + '</option>').join('')
+      : options;
+  });
+}
+
+function runComparison() {
+  const spot = parseFloat(document.getElementById('cmp-spot').value) || 22000;
+  const iv = parseFloat(document.getElementById('cmp-iv').value) || 18;
+  const dte = parseInt(document.getElementById('cmp-dte').value) || 30;
+  const lot = parseInt(document.getElementById('cmp-lot').value) || 50;
+  
+  const keys = ['cmp-a', 'cmp-b', 'cmp-c'].map(id => document.getElementById(id).value).filter(Boolean);
+  if (keys.length < 2) { alert('Please select at least 2 strategies to compare.'); return; }
+  
+  const colors = ['#d4a017', '#60a5fa', '#f472b6'];
+  const lo = spot * 0.75, hi = spot * 1.25;
+  const steps = 150;
+  const prices = Array.from({length: steps+1}, (_, i) => lo + (hi-lo)*i/steps);
+  
+  const strategies = keys.map((key, idx) => {
+    const s = STRATEGY_DB[key];
+    const stratLegs = s.legs.map(legDef => {
+      const strike = Math.round(spot * (1 + (legDef.strike_offset||0)/100) / 50) * 50;
+      const premium = Math.round(spot * legDef.premium_pct / 100);
+      return { position: legDef.position, type: legDef.type, strike, premium, qty: legDef.qty || 1 };
+    });
+    const payoffs = prices.map(S => stratLegs.reduce((sum, l) => sum + legPayoff(l, S), 0) * lot);
+    const netPrem = stratLegs.reduce((sum, l) => sum + (l.position==='buy'?-1:1)*l.premium*(l.qty||1), 0);
+    return { key, s, stratLegs, payoffs, netPrem, color: colors[idx] };
+  });
+  
+  // Chart
+  const ctx = document.getElementById('compareChart').getContext('2d');
+  if (compareChartInstance) compareChartInstance.destroy();
+  compareChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: strategies.map(st => ({
+        label: st.s.name,
+        data: prices.map((p, i) => ({ x: p, y: st.payoffs[i] })),
+        borderColor: st.color,
+        borderWidth: 2.5,
+        fill: false,
+        tension: 0.1,
+        pointRadius: 0
+      })).concat([{
+        label: 'Break-Even',
+        data: prices.map(p => ({ x: p, y: 0 })),
+        borderColor: 'rgba(255,255,255,0.2)',
+        borderWidth: 1,
+        borderDash: [3,3],
+        fill: false,
+        pointRadius: 0
+      }])
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#c8c8d4' } },
+        tooltip: { callbacks: { title: ctx => '₹' + fmt(ctx[0].parsed.x), label: ctx => ctx.dataset.label + ': ₹' + fmt(ctx.parsed.y) } }
+      },
+      scales: {
+        x: { type: 'linear', ticks: { color: '#8888a0', callback: v => '₹'+fmt(v) }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#8888a0', callback: v => (v>=0?'+':'')+'₹'+fmt(v) }, grid: { color: 'rgba(255,255,255,0.08)' } }
+      }
+    }
+  });
+  
+  // Table
+  const showC = keys.length >= 3;
+  document.getElementById('col-c-header').style.display = showC ? '' : 'none';
+  
+  const metrics = [
+    ['Strategy Type', s => s.s.risk_type],
+    ['Max Profit', s => s.s.max_profit],
+    ['Max Loss', s => s.s.max_loss],
+    ['Net Premium', s => (s.netPrem >= 0 ? 'Credit ₹' : 'Debit ₹') + fmt(Math.abs(s.netPrem * lot))],
+    ['Peak P&L at Expiry', s => '₹' + fmt(Math.max(...s.payoffs))],
+    ['Worst P&L at Expiry', s => '₹' + fmt(Math.min(...s.payoffs))],
+    ['Category', s => s.s.category],
+    ['IV Outlook', s => s.s.iv_outlook],
+    ['Market Outlook', s => s.s.outlook],
+    ['Greeks Profile', s => s.s.greeks_profile]
+  ];
+  
+  document.getElementById('compare-tbody').innerHTML = metrics.map(([label, fn]) => {
+    return '<tr><td>' + label + '</td>' + strategies.map(st => '<td>' + fn(st) + '</td>').join('') + '</tr>';
+  }).join('');
+  
+  // Verdict
+  const maxProfits = strategies.map(st => Math.max(...st.payoffs));
+  const bestIdx = maxProfits.indexOf(Math.max(...maxProfits));
+  document.getElementById('compare-verdict').innerHTML = 
+    '<strong>🏆 Best Max Profit:</strong> ' + strategies[bestIdx].s.name + 
+    ' (₹' + fmt(maxProfits[bestIdx]) + ')' +
+    '<br><em>Note: Higher max profit often comes with higher risk or lower probability of profit. Always check the full payoff curve before trading.</em>';
+  
+  document.getElementById('compare-results').style.display = 'block';
+}
+
+/* ─────────────────────────────────────────────
+   SCENARIO SIMULATOR
+───────────────────────────────────────────── */
+const SCENARIOS = {
+  'bullish-breakout': {
+    title: '🚀 Bullish Breakout',
+    conditions: { spotChange: +15, ivChange: -30, dteChange: -10 },
+    conditionsText: [
+      '📈 Spot rises <strong>+15%</strong> from current level',
+      '⬇️ IV contracts <strong>-30%</strong> as bullish trend takes hold',
+      '⏳ <strong>10 days</strong> pass before this move plays out',
+    ],
+    strategies: ['longCall', 'bullCallSpread', 'bullPutSpread'],
+    recommended: 'bullCallSpread',
+    learning: [
+      'Long calls benefit most from upward moves but are hurt by IV contraction.',
+      'Bull call spread offers lower cost and defined risk — better when IV is high.',
+      'Bull put spread (credit) profits from staying above short put — works if rally is moderate.',
+      'IV contraction (Vega effect) reduces option premiums even as price rises — watch out for debit strategies.'
+    ]
+  },
+  'bearish-crash': {
+    title: '📉 Bearish Crash',
+    conditions: { spotChange: -20, ivChange: +80, dteChange: -5 },
+    conditionsText: [
+      '📉 Spot crashes <strong>-20%</strong> in a panic selloff',
+      '⬆️ IV spikes <strong>+80%</strong> as fear dominates',
+      '⏳ <strong>5 days</strong> pass rapidly during the selloff',
+    ],
+    strategies: ['longPut', 'bearPutSpread', 'longStraddle'],
+    recommended: 'longPut',
+    learning: [
+      'Long puts profit maximally from a sharp crash + IV spike (double benefit).',
+      'Bear put spreads reduce cost but cap profits — may not fully capture the crash move.',
+      'Straddles: the put leg profits massively but call leg is a drag — still profitable.',
+      'IV spike helps ALL long premium (vega-positive) positions during a crash.'
+    ]
+  },
+  'range-bound': {
+    title: '↔️ Range-Bound Decay',
+    conditions: { spotChange: 0, ivChange: -15, dteChange: -20 },
+    conditionsText: [
+      '➡️ Spot barely moves — stays within <strong>±3%</strong> of current level',
+      '⬇️ IV slowly contracts <strong>-15%</strong> over time',
+      '⏳ <strong>20 days</strong> pass — theta accelerates near expiry',
+    ],
+    strategies: ['ironCondor', 'ironButterfly', 'bearCallSpread'],
+    recommended: 'ironCondor',
+    learning: [
+      'Iron Condor is the king in range-bound, slowly decaying markets.',
+      'Time decay (theta) works for all credit strategies — earn money just by waiting.',
+      'Iron Butterfly has higher premium but narrower profit zone — needs very precise pinning.',
+      'IV contraction helps short vega strategies (credit spreads, condors, butterflies).'
+    ]
+  },
+  'iv-spike': {
+    title: '⚡ IV Spike (Pre-Event)',
+    conditions: { spotChange: 0, ivChange: +40, dteChange: -5 },
+    conditionsText: [
+      '➡️ Spot stays roughly flat — no directional move yet',
+      '⬆️ IV spikes <strong>+40%</strong> as event premium builds up',
+      '⏳ <strong>5 days</strong> to the event — premiums are swelling',
+    ],
+    strategies: ['longStraddle', 'longStrangle', 'calendarSpread'],
+    recommended: 'longStraddle',
+    learning: [
+      'Long straddles and strangles are "long vega" — they profit from IV expansion even without price moves.',
+      'Buy before IV spikes; sell after the event (IV crush danger).',
+      'Calendar spreads benefit from rising IV in far-term leg vs near-term.',
+      'Debit strategies benefit from IV spike — your purchased options become worth more.'
+    ]
+  },
+  'iv-crush': {
+    title: '💥 IV Crush (Post-Event)',
+    conditions: { spotChange: +2, ivChange: -50, dteChange: -3 },
+    conditionsText: [
+      '➡️ Spot moves only <strong>+2%</strong> — a disappointingly small move',
+      '⬇️ IV crashes <strong>-50%</strong> immediately after the event',
+      '⏳ <strong>3 days</strong> post-event — all event premium evaporates',
+    ],
+    strategies: ['ironCondor', 'ironButterfly', 'bearCallSpread'],
+    recommended: 'ironCondor',
+    learning: [
+      'IV crush destroys long premium positions (straddles, strangles) even if price moves slightly.',
+      'Short vega strategies (condors, butterflies, credit spreads) profit massively from IV crush.',
+      'This is why selling straddles/strangles AFTER high-IV events is popular.',
+      'The "right" strategy before an event is to be long vega; after the event, be short vega.'
+    ]
+  },
+  'banknifty-weekly': {
+    title: '🏦 Bank Nifty Weekly',
+    conditions: { spotChange: +1.5, ivChange: -10, dteChange: -6 },
+    conditionsText: [
+      '📈 Bank Nifty rises <strong>+1.5%</strong> — a Monday rally',
+      '⬇️ IV contracts slightly as range holds',
+      '⏳ <strong>6 days</strong> pass — Wednesday expiry approaches with extreme theta',
+    ],
+    strategies: ['ironCondor', 'ironButterfly', 'bearCallSpread'],
+    recommended: 'ironCondor',
+    learning: [
+      'Weekly options lose 70%+ of value in the last 3 days — theta is explosive near expiry.',
+      'Gamma risk also spikes near expiry — small moves cause large P&L swings in short positions.',
+      'Iron condor is preferred over naked short straddle for weekly plays — wings cap your risk.',
+      'The Bank Nifty+1.5% scenario: the short put side profits, but short call side is under slight pressure — adjust if needed.'
+    ]
+  }
+};
+
+function loadScenario(key) {
+  const sc = SCENARIOS[key];
+  if (!sc) return;
+  
+  const spot = parseFloat(document.getElementById('sp-underlying').value) || 22000;
+  
+  document.getElementById('scenario-result-title').textContent = sc.title;
+  
+  // Conditions
+  document.getElementById('sim-conditions').innerHTML = 
+    '<ul class="sim-conditions-list">' +
+    sc.conditionsText.map(c => '<li>' + c + '</li>').join('') +
+    '</ul>' +
+    '<div class="sim-condition-summary">' +
+      '<div class="sim-cond-chip ' + (sc.conditions.spotChange >= 0 ? 'green' : 'red') + '">Spot ' + (sc.conditions.spotChange >= 0 ? '+' : '') + sc.conditions.spotChange + '%</div>' +
+      '<div class="sim-cond-chip ' + (sc.conditions.ivChange >= 0 ? 'orange' : 'blue') + '">IV ' + (sc.conditions.ivChange >= 0 ? '+' : '') + sc.conditions.ivChange + '%</div>' +
+      '<div class="sim-cond-chip">DTE -' + sc.conditions.dteChange + 'd</div>' +
+    '</div>';
+  
+  // Strategy options
+  document.getElementById('sim-strategy-options').innerHTML = sc.strategies.map(key => {
+    const s = STRATEGY_DB[key];
+    const isRec = key === sc.recommended;
+    return '<div class="sim-strat-option ' + (isRec ? 'recommended' : '') + '" onclick="loadAndSwitch(\'' + key + '\')">' +
+      (isRec ? '<span class="rec-badge">⭐ Recommended</span>' : '') +
+      '<strong>' + s.name + '</strong><br>' +
+      '<small>' + s.description.slice(0, 80) + '...</small>' +
+      '</div>';
+  }).join('');
+  
+  // Simulate payoff for recommended strategy
+  const rec = STRATEGY_DB[sc.recommended];
+  const newSpot = spot * (1 + sc.conditions.spotChange / 100);
+  const simLegs = rec.legs.map(l => ({
+    position: l.position,
+    type: l.type,
+    strike: Math.round(spot * (1 + (l.strike_offset||0)/100) / 50) * 50,
+    premium: Math.round(spot * l.premium_pct / 100),
+    qty: l.qty || 1
+  }));
+  
+  const lo = spot * 0.70, hi = spot * 1.30, steps = 100;
+  const prices = Array.from({length: steps+1}, (_, i) => lo + (hi-lo)*i/steps);
+  const payoffs = prices.map(S => simLegs.reduce((sum, l) => sum + legPayoff(l, S), 0) * 50);
+  
+  const simCtx = document.getElementById('simChart').getContext('2d');
+  if (simChartInstance) simChartInstance.destroy();
+  simChartInstance = new Chart(simCtx, {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: rec.name + ' P&L',
+          data: prices.map((p, i) => ({ x: p, y: payoffs[i] })),
+          borderColor: '#d4a017',
+          fill: { target: { value: 0 }, above: 'rgba(34,197,94,0.15)', below: 'rgba(239,68,68,0.15)' },
+          tension: 0.1, pointRadius: 0, borderWidth: 2.5
+        },
+        {
+          label: 'Entry Price',
+          data: [{ x: spot, y: Math.min(...payoffs) }, { x: spot, y: Math.max(...payoffs) }],
+          borderColor: '#60a5fa', borderDash: [4,4], fill: false, pointRadius: 0, borderWidth: 1.5
+        },
+        {
+          label: 'Scenario Price',
+          data: [{ x: newSpot, y: Math.min(...payoffs) }, { x: newSpot, y: Math.max(...payoffs) }],
+          borderColor: sc.conditions.spotChange >= 0 ? '#22c55e' : '#ef4444', borderDash: [4,4], fill: false, pointRadius: 0, borderWidth: 1.5
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#c8c8d4', font: { size: 10 } } },
+        tooltip: { callbacks: { title: ctx => '₹'+fmt(ctx[0].parsed.x), label: ctx => ctx.dataset.label+': ₹'+fmt(ctx.parsed.y) } }
+      },
+      scales: {
+        x: { type: 'linear', ticks: { color: '#8888a0', callback: v => '₹'+fmt(v) }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#8888a0', callback: v => (v>=0?'+':'')+'₹'+fmt(v) }, grid: { color: 'rgba(255,255,255,0.08)' } }
+      }
+    }
+  });
+  
+  // Learning points
+  document.getElementById('sim-learning').innerHTML =
+    '<ol class="learning-list">' + sc.learning.map(l => '<li>' + l + '</li>').join('') + '</ol>';
+  
+  // P&L Matrix
+  buildMatrix(simLegs, spot, sc.conditions.dteChange);
+  
+  document.getElementById('scenario-result-area').style.display = 'block';
+  document.getElementById('scenario-result-area').scrollIntoView({ behavior: 'smooth' });
+}
+
+function buildMatrix(simLegs, spot, dteDays) {
+  const pctLevels = [-20, -15, -10, -5, 0, 5, 10, 15, 20];
+  const timeLevels = ['Today', '-7d', '-14d', 'Expiry'];
+  const table = document.getElementById('sim-matrix');
+  
+  const header = '<thead><tr><th>Price / Time</th>' + timeLevels.map(t => '<th>' + t + '</th>').join('') + '</tr></thead>';
+  const rows = pctLevels.map(pct => {
+    const S = spot * (1 + pct / 100);
+    const pnl = simLegs.reduce((sum, l) => sum + legPayoff(l, S), 0) * 50;
+    const cells = timeLevels.map((t, ti) => {
+      const decay = ti / (timeLevels.length - 1);
+      const adj = pnl * (1 - decay * 0.3);
+      const cls = adj >= 0 ? 'pnl-green' : 'pnl-red';
+      return '<td class="' + cls + '">' + (adj >= 0 ? '+' : '') + '₹' + fmt(adj) + '</td>';
+    }).join('');
+    return '<tr><td>₹' + fmt(S) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</td>' + cells + '</tr>';
+  }).join('');
+  
+  table.innerHTML = header + '<tbody>' + rows + '</tbody>';
+}
+
+function clearScenario() {
+  document.getElementById('scenario-result-area').style.display = 'none';
+}
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  renderLegs();
+});
+
+</script>
+{% endblock %}
