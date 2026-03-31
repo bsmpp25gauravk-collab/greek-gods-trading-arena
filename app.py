@@ -534,6 +534,10 @@ def portfolio():
 def arena():
     return render_template('arena.html')
 
+@app.route('/strategy-lab')
+def strategy_lab():
+    return render_template('strategy_lab.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
