@@ -538,6 +538,72 @@ def arena():
 def strategy_lab():
     return render_template('strategy_lab.html')
 
+# ══════════════════════════════════════════════════════════════════════════
+#  ADD THESE ROUTES TO app.py
+#  Place them alongside your existing @app.route entries
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.route('/volatility-engine')
+def volatility_engine():
+    """Module 3: IV Rank & Percentile Trading System"""
+    return render_template('volatility_engine.html')
+
+
+# ── Optional: IV Rank API endpoint (for future calculator integrations) ──
+@app.route('/api/iv-rank', methods=['POST'])
+def iv_rank_api():
+    """
+    POST JSON: { current_iv, high_iv, low_iv, hv, days_below }
+    Returns:   { iv_rank, iv_percentile, iv_hv_spread, regime, signal }
+    """
+    import json
+    from flask import request, jsonify
+
+    data = request.get_json(force=True)
+    current_iv  = _float(data.get('current_iv', 0))
+    high_iv     = _float(data.get('high_iv', 1))
+    low_iv      = _float(data.get('low_iv', 0))
+    hv          = _float(data.get('hv', 0))
+    days_below  = _float(data.get('days_below', 0))
+
+    if high_iv <= low_iv:
+        return jsonify({'error': '52-week high must exceed low'}), 400
+
+    iv_rank      = round((current_iv - low_iv) / (high_iv - low_iv) * 100, 1)
+    iv_percentile = round(days_below / 252 * 100, 1)
+    iv_hv_spread  = round(current_iv - hv, 2)
+
+    if iv_rank >= 50 or iv_percentile >= 50:
+        regime = 'high'
+        signal = 'sell_premium'
+    elif iv_rank < 30 and iv_percentile < 40:
+        regime = 'low'
+        signal = 'buy_premium'
+    else:
+        regime = 'neutral'
+        signal = 'neutral'
+
+    return jsonify({
+        'iv_rank':        iv_rank,
+        'iv_percentile':  iv_percentile,
+        'iv_hv_spread':   iv_hv_spread,
+        'regime':         regime,
+        'signal':         signal,
+        'current_iv':     current_iv,
+        'hv':             hv,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  ADD THIS LINK TO YOUR nav in base.html
+#  (find your existing nav items and add alongside them)
+# ══════════════════════════════════════════════════════════════════════════
+#
+#  <a href="/volatility-engine" class="nav-link">⚡ Volatility Engine</a>
+#
+# ══════════════════════════════════════════════════════════════════════════
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
