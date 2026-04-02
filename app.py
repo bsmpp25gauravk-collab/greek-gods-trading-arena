@@ -604,6 +604,80 @@ def iv_rank_api():
 # ══════════════════════════════════════════════════════════════════════════
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  ADD THESE TO app.py — Module 4: Weekly Decay Optimizer
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.route('/decay-optimizer')
+def decay_optimizer():
+    """Module 4: Weekly Options Decay Optimizer — Theta Timing Engine"""
+    return render_template('decay_optimizer.html')
+
+
+# ── Optional: Theta calculation API endpoint ──
+@app.route('/api/theta-timing', methods=['POST'])
+def theta_timing_api():
+    """
+    POST JSON: { dte, premium, iv_rank, event_flag }
+    Returns:   { signal, gamma_score, daily_theta, tv_remaining, 
+                 target_exit, stop_loss, recommended_strategy }
+    """
+    from flask import request, jsonify
+    import math
+
+    data = request.get_json(force=True)
+    dte       = max(0, min(7, int(data.get('dte', 4))))
+    premium   = _float(data.get('premium', 180))
+    iv_rank   = _float(data.get('iv_rank', 50))
+    event     = data.get('event_flag', 'none')  # none|minor|major|earnings
+
+    tv_remaining  = round(premium * math.sqrt(dte / 7))
+    daily_theta   = round(premium * (math.sqrt(dte/7) - math.sqrt(max(0, dte-1)/7))) if dte > 0 else premium
+    gamma_score   = 95 if dte <= 1 else 72 if dte <= 2 else 48 if dte <= 3 else 25 if dte <= 4 else 12
+    target_exit   = round(premium * 0.5)
+    stop_loss     = round(premium * 2)  # 200% of credit = max loss threshold
+
+    # Signal logic
+    if event in ('major', 'earnings'):
+        signal = 'avoid_event'
+        strategy = 'Skip week — wait for post-event IV crush'
+    elif dte >= 6:
+        signal = 'too_early'
+        strategy = 'Observe — wait for 4-5 DTE window'
+    elif dte >= 4:
+        signal = 'optimal'
+        strategy = 'Iron Condor (defined risk) — enter now'
+    elif dte == 3:
+        signal = 'aggressive'
+        strategy = 'Iron Condor at reduced size — aggressive entry'
+    else:
+        signal = 'avoid_gamma'
+        strategy = 'Avoid fresh entry — gamma risk too high'
+
+    return jsonify({
+        'dte':                dte,
+        'signal':             signal,
+        'gamma_score':        gamma_score,
+        'daily_theta':        daily_theta,
+        'tv_remaining':       tv_remaining,
+        'target_exit':        target_exit,
+        'stop_loss_trigger':  stop_loss,
+        'recommended_strategy': strategy,
+        'iv_rank':            iv_rank,
+        'event_flag':         event,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  ADD THIS LINK TO base.html nav (alongside existing nav items):
+#  <a href="/decay-optimizer" class="nav-link">⏱ Decay Optimizer</a>
+#
+#  RECOMMENDED NAV ORDER (left → right):
+#  Home | ⚡ Volatility Engine | ⏱ Decay Optimizer | 📐 Strategy Lab |
+#  📊 Portfolio | 🔢 Calculator | 📈 Scenarios | 🏟 Arena
+# ══════════════════════════════════════════════════════════════════════════
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
