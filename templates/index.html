@@ -1,115 +1,580 @@
 {% extends "base.html" %}
-{% block title %}Greek Gods Trading Arena — Learn Options Greeks{% endblock %}
-{% block content %}
+{% block title %}Greek Gods Trading Arena — Options Intelligence Platform{% endblock %}
 
-<div class="hero">
+{% block content %}
+<style>
+/* ── Homepage-specific styles ── */
+.hero {
+  min-height: calc(100vh - 60px);
+  display: flex; align-items: center;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 40%, rgba(212,160,23,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 80%, rgba(77,255,145,.04) 0%, transparent 60%),
+    linear-gradient(160deg,#0d0e1a 0%,#111228 50%,#0d1520 100%);
+  padding: var(--sp-2xl) var(--sp-lg);
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(212,160,23,.025) 40px,rgba(212,160,23,.025) 41px),
+    repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(212,160,23,.025) 40px,rgba(212,160,23,.025) 41px);
+  pointer-events: none;
+}
+.hero-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2xl); align-items: center;
+  position: relative;
+}
+.hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.15em;
+  color: var(--c-green); text-transform: uppercase;
+  margin-bottom: var(--sp-md);
+  display: flex; align-items: center; gap: 8px;
+}
+.hero-eyebrow::before {
+  content: ''; display: block;
+  width: 24px; height: 1px; background: var(--c-green);
+}
+.hero-headline {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(2rem,4vw,3.2rem);
+  color: var(--gold); letter-spacing: 0.03em;
+  line-height: 1.15; margin-bottom: var(--sp-md);
+}
+.hero-headline em { font-style: normal; color: var(--white); }
+.hero-sub {
+  font-size: clamp(1rem,2vw,1.15rem);
+  color: var(--text-sub); line-height: 1.7;
+  max-width: 480px; margin-bottom: var(--sp-xl);
+}
+.hero-actions { display: flex; gap: var(--sp-md); flex-wrap: wrap; }
+.hero-stats {
+  display: flex; gap: var(--sp-xl); margin-top: var(--sp-xl);
+  padding-top: var(--sp-lg); border-top: 1px solid rgba(255,255,255,.06);
+}
+.hero-stat-val {
+  font-family: 'Cinzel', serif; font-size: 1.6rem;
+  color: var(--gold); display: block;
+}
+.hero-stat-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem; color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+/* Platform flow viz on right */
+.hero-visual {
+  background: var(--card-bg);
+  border: var(--card-border);
+  border-radius: 16px;
+  padding: var(--sp-lg);
+  backdrop-filter: blur(12px);
+  position: relative;
+}
+.hv-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; color: var(--text-dim);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: var(--sp-md); text-align: center;
+}
+.flow-diagram {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.flow-node {
+  background: rgba(0,0,0,.3);
+  border: 1px solid rgba(212,160,23,.15);
+  border-radius: 10px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer; transition: border-color .2s, background .2s;
+  text-decoration: none;
+}
+.flow-node:hover {
+  border-color: rgba(212,160,23,.4);
+  background: rgba(212,160,23,.05);
+}
+.flow-node.fn-active {
+  border-color: rgba(212,160,23,.5);
+  background: rgba(212,160,23,.08);
+}
+.fn-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(212,160,23,.15);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; color: var(--gold); flex-shrink: 0;
+}
+.fn-body { flex: 1; min-width: 0; }
+.fn-name {
+  font-family: 'Cinzel', serif; font-size: 0.82rem;
+  color: var(--white); display: block; margin-bottom: 2px;
+}
+.fn-desc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem; color: var(--text-dim);
+}
+.fn-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.55rem; padding: 2px 6px; border-radius: 4px;
+  background: rgba(77,255,145,.1); color: var(--c-green);
+  flex-shrink: 0;
+}
+.flow-arrow-connector {
+  display: flex; justify-content: center; align-items: center;
+  height: 16px; color: rgba(212,160,23,.3);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+}
+
+/* Workflow section */
+.workflow-section {
+  background: rgba(0,0,0,.2);
+  border-top: 1px solid rgba(255,255,255,.04);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  padding: var(--sp-xl) var(--sp-lg);
+}
+.workflow-inner {
+  max-width: 1200px; margin: 0 auto;
+}
+.wf-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; letter-spacing: 0.12em;
+  color: var(--text-dim); text-transform: uppercase;
+  text-align: center; margin-bottom: var(--sp-lg);
+}
+.wf-flow {
+  display: flex; align-items: stretch;
+  justify-content: center; flex-wrap: wrap; gap: 0;
+}
+.wf-item {
+  flex: 1; min-width: 160px; max-width: 220px;
+  background: var(--card-bg); border: var(--card-border);
+  border-radius: 0; padding: var(--sp-lg) var(--sp-md);
+  text-align: center; transition: background .2s;
+  text-decoration: none; display: block;
+  position: relative;
+}
+.wf-item:first-child { border-radius: var(--card-radius) 0 0 var(--card-radius); }
+.wf-item:last-child  { border-radius: 0 var(--card-radius) var(--card-radius) 0; }
+.wf-item:hover { background: rgba(212,160,23,.06); }
+.wf-item + .wf-item {
+  border-left: none;
+  margin-left: -1px;
+}
+.wf-item-icon { font-size: 1.6rem; margin-bottom: 8px; }
+.wf-item-name {
+  font-family: 'Cinzel', serif; font-size: 0.8rem;
+  color: var(--gold); letter-spacing: 0.04em; margin-bottom: 4px;
+}
+.wf-item-q {
+  font-family: 'Crimson Pro', serif; font-size: 0.82rem;
+  color: var(--text-sub); font-style: italic; line-height: 1.4;
+}
+.wf-connector {
+  display: flex; align-items: center;
+  padding: 0; color: rgba(212,160,23,.4); font-size: 0.8rem;
+}
+
+/* Module cards section */
+.modules-section { padding: var(--sp-2xl) var(--sp-lg); }
+.modules-inner { max-width: 1200px; margin: 0 auto; }
+.modules-intro {
+  text-align: center; margin-bottom: var(--sp-xl);
+}
+.modules-intro .section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem; letter-spacing: 0.12em;
+  color: var(--text-dim); text-transform: uppercase;
+  display: block; margin-bottom: 10px;
+}
+.modules-intro h2 {
+  font-family: 'Cinzel', serif; font-size: clamp(1.4rem,3vw,2rem);
+  color: var(--gold); letter-spacing: 0.05em;
+}
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
+  gap: var(--sp-md);
+}
+.module-card {
+  background: var(--card-bg); border: var(--card-border);
+  border-radius: var(--card-radius); padding: var(--sp-lg);
+  backdrop-filter: blur(10px);
+  transition: transform .2s, border-color .2s;
+  text-decoration: none; display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.module-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent-color, var(--gold-line));
+  transition: opacity .2s;
+}
+.module-card:hover { transform: translateY(-3px); border-color: rgba(212,160,23,.35); }
+.mc-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; color: var(--text-dim);
+  letter-spacing: 0.1em; margin-bottom: 10px;
+}
+.mc-icon { font-size: 2rem; margin-bottom: 12px; }
+.mc-name {
+  font-family: 'Cinzel', serif; font-size: 1rem;
+  color: var(--gold); letter-spacing: 0.04em; margin-bottom: 6px;
+}
+.mc-tagline {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; color: var(--text-dim);
+  letter-spacing: 0.04em; margin-bottom: 10px;
+}
+.mc-desc {
+  font-size: 0.9rem; color: var(--text-sub); line-height: 1.6;
+  flex: 1; margin-bottom: var(--sp-md);
+}
+.mc-features {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--sp-md);
+}
+.mc-feature {
+  background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px; padding: 3px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem; color: var(--text-sub);
+}
+.mc-cta {
+  font-family: 'Cinzel', serif; font-size: 0.72rem;
+  color: var(--gold); letter-spacing: 0.05em;
+  display: flex; align-items: center; gap: 5px;
+  padding-top: 12px; border-top: 1px solid rgba(212,160,23,.12);
+  margin-top: auto;
+}
+
+/* Use cases */
+.usecases-section {
+  background: rgba(0,0,0,.15);
+  border-top: 1px solid rgba(255,255,255,.04);
+  padding: var(--sp-2xl) var(--sp-lg);
+}
+.usecases-inner { max-width: 1200px; margin: 0 auto; }
+.uc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap: var(--sp-md); margin-top: var(--sp-xl);
+}
+.uc-card {
+  background: var(--card-bg); border: var(--card-border);
+  border-radius: var(--card-radius); padding: var(--sp-lg);
+  backdrop-filter: blur(8px);
+}
+.uc-icon { font-size: 1.8rem; margin-bottom: 10px; }
+.uc-title {
+  font-family: 'Cinzel', serif; font-size: 0.88rem;
+  color: var(--gold); letter-spacing: 0.04em; margin-bottom: 6px;
+}
+.uc-text {
+  font-size: 0.88rem; color: var(--text-sub); line-height: 1.6;
+}
+
+/* Final CTA section */
+.final-cta {
+  padding: var(--sp-2xl) var(--sp-lg);
+  text-align: center;
+  background: linear-gradient(135deg,rgba(212,160,23,.04),rgba(77,255,145,.02));
+}
+.final-cta-inner { max-width: 700px; margin: 0 auto; }
+.final-cta h2 {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(1.4rem,3vw,2.2rem);
+  color: var(--gold); letter-spacing: 0.05em; margin-bottom: 12px;
+}
+.final-cta p {
+  font-size: 1rem; color: var(--text-sub);
+  line-height: 1.7; margin-bottom: var(--sp-xl);
+}
+.final-cta-actions { display: flex; justify-content: center; gap: var(--sp-md); flex-wrap: wrap; }
+
+@media(max-width:768px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-visual { display: none; }
+  .wf-flow { flex-direction: column; align-items: stretch; }
+  .wf-item:first-child { border-radius: var(--card-radius) var(--card-radius) 0 0; }
+  .wf-item:last-child  { border-radius: 0 0 var(--card-radius) var(--card-radius); }
+  .wf-connector { display: none; }
+  .hero-stats { gap: var(--sp-lg); }
+}
+</style>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero" aria-label="Platform introduction">
   <div class="hero-inner">
-    <p class="hero-eyebrow">Options Education · Risk Management · Gamified Learning</p>
-    <h1 class="hero-title">Master the <span class="accent">Options Greeks</span></h1>
-    <p class="hero-sub">From Black-Scholes formulas to real portfolio risk management — learn every Greek, stress-test positions, and battle through 6 campaign levels.</p>
-    <div class="hero-btns">
-      <a href="/study" class="btn btn-primary btn-lg">📚 Start Learning</a>
-      <a href="/arena" class="btn btn-secondary btn-lg">🎮 Play Arena</a>
-      <a href="/calculator" class="btn btn-ghost btn-lg">⚡ BSM Calculator</a>
+    <div class="hero-left">
+      <p class="hero-eyebrow">Options Intelligence Platform</p>
+      <h1 class="hero-headline">
+        A Complete<br>
+        <em>Options Trading</em><br>
+        Decision System
+      </h1>
+      <p class="hero-sub">
+        Analyse volatility regime, optimise weekly timing, build strategies, and monitor portfolio risk — one integrated platform for systematic options trading.
+      </p>
+      <div class="hero-actions">
+        <a href="/volatility-engine" class="btn btn-primary btn-lg">
+          Start with Volatility Engine →
+        </a>
+        <a href="#modules" class="btn btn-outline btn-lg">
+          Explore All Modules
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <span class="hero-stat-val">4</span>
+          <span class="hero-stat-lbl">Integrated Modules</span>
+        </div>
+        <div>
+          <span class="hero-stat-val">12+</span>
+          <span class="hero-stat-lbl">Strategies Modelled</span>
+        </div>
+        <div>
+          <span class="hero-stat-val">20+</span>
+          <span class="hero-stat-lbl">Simulation Scenarios</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      <p class="hv-title">Platform Decision Flow</p>
+      <div class="flow-diagram">
+        <a href="/volatility-engine" class="flow-node fn-active">
+          <span class="fn-num">1</span>
+          <span class="fn-body">
+            <span class="fn-name">⚡ Volatility Engine</span>
+            <span class="fn-desc">Is IV high or low? Buy or sell premium?</span>
+          </span>
+          <span class="fn-badge">M3</span>
+        </a>
+        <div class="flow-arrow-connector">↓</div>
+        <a href="/decay-optimizer" class="flow-node">
+          <span class="fn-num">2</span>
+          <span class="fn-body">
+            <span class="fn-name">⏱ Decay Optimizer</span>
+            <span class="fn-desc">Right timing in the weekly cycle?</span>
+          </span>
+          <span class="fn-badge">M4</span>
+        </a>
+        <div class="flow-arrow-connector">↓</div>
+        <a href="/strategy-lab" class="flow-node">
+          <span class="fn-num">3</span>
+          <span class="fn-body">
+            <span class="fn-name">📐 Strategy Lab</span>
+            <span class="fn-desc">Which structure? Payoff & Greeks.</span>
+          </span>
+          <span class="fn-badge">M2</span>
+        </a>
+        <div class="flow-arrow-connector">↓</div>
+        <a href="/portfolio" class="flow-node">
+          <span class="fn-num">4</span>
+          <span class="fn-body">
+            <span class="fn-name">📊 Portfolio Dashboard</span>
+            <span class="fn-desc">Total risk exposure. Any breaches?</span>
+          </span>
+          <span class="fn-badge">M1</span>
+        </a>
+      </div>
     </div>
   </div>
-</div>
+</section>
 
-<div class="container home-page">
-
-  {# Greek Cards #}
-  <section class="home-section">
-    <h2 class="section-title">The Five Primary Greeks</h2>
-    <div class="greek-cards">
-      <a href="/study#delta" class="gc-card delta-card">
-        <div class="gc-sym">Δ</div>
-        <div class="gc-name">Delta</div>
-        <div class="gc-range">0 to +1 (call) · −1 to 0 (put)</div>
-        <div class="gc-desc">Price sensitivity per ₹1 spot move</div>
-        <div class="gc-arrow">→</div>
+<!-- ═══ WORKFLOW SECTION ═══ -->
+<section class="workflow-section" aria-label="How the platform works">
+  <div class="workflow-inner">
+    <p class="wf-label">The 4-Step Decision Process</p>
+    <div class="wf-flow">
+      <a href="/volatility-engine" class="wf-item">
+        <div class="wf-item-icon">⚡</div>
+        <div class="wf-item-name">Volatility</div>
+        <div class="wf-item-q">Should I buy or sell options?</div>
       </a>
-      <a href="/study#gamma" class="gc-card gamma-card">
-        <div class="gc-sym">Γ</div>
-        <div class="gc-name">Gamma</div>
-        <div class="gc-range">Always positive · peaks ATM</div>
-        <div class="gc-desc">Rate of change of Delta</div>
-        <div class="gc-arrow">→</div>
+      <div class="wf-connector">→</div>
+      <a href="/decay-optimizer" class="wf-item">
+        <div class="wf-item-icon">⏱</div>
+        <div class="wf-item-name">Timing</div>
+        <div class="wf-item-q">Is this the right moment?</div>
       </a>
-      <a href="/study#theta" class="gc-card theta-card">
-        <div class="gc-sym">Θ</div>
-        <div class="gc-name">Theta</div>
-        <div class="gc-range">Negative for buyers</div>
-        <div class="gc-desc">Daily time decay in option value</div>
-        <div class="gc-arrow">→</div>
+      <div class="wf-connector">→</div>
+      <a href="/strategy-lab" class="wf-item">
+        <div class="wf-item-icon">📐</div>
+        <div class="wf-item-name">Strategy</div>
+        <div class="wf-item-q">Which structure fits?</div>
       </a>
-      <a href="/study#vega" class="gc-card vega-card">
-        <div class="gc-sym">ν</div>
-        <div class="gc-name">Vega</div>
-        <div class="gc-range">Always positive · highest ATM</div>
-        <div class="gc-desc">Sensitivity to 1% IV change</div>
-        <div class="gc-arrow">→</div>
+      <div class="wf-connector">→</div>
+      <a href="/portfolio" class="wf-item">
+        <div class="wf-item-icon">📊</div>
+        <div class="wf-item-name">Risk</div>
+        <div class="wf-item-q">What exposure am I taking?</div>
       </a>
-      <a href="/study#rho" class="gc-card rho-card">
-        <div class="gc-sym">ρ</div>
-        <div class="gc-name">Rho</div>
-        <div class="gc-range">Positive (call) · Negative (put)</div>
-        <div class="gc-desc">Sensitivity to interest rate change</div>
-        <div class="gc-arrow">→</div>
+      <div class="wf-connector">→</div>
+      <a href="/arena" class="wf-item">
+        <div class="wf-item-icon">🏟</div>
+        <div class="wf-item-name">Simulate</div>
+        <div class="wf-item-q">Practice before real money.</div>
       </a>
     </div>
-  </section>
+  </div>
+</section>
 
-  {# Tools section #}
-  <section class="home-section">
-    <h2 class="section-title">Interactive Tools</h2>
-    <div class="tools-grid">
-      <a href="/calculator" class="tool-card">
-        <div class="tool-icon">⚡</div>
-        <h3>BSM Calculator</h3>
-        <p>Enter any option's details — get full Greeks for both Call and Put simultaneously. Rate and IV entered as percentage (e.g. 5.28%, 22.49%).</p>
-        <span class="tool-link">Open Calculator →</span>
+<!-- ═══ MODULE CARDS ═══ -->
+<section class="modules-section" id="modules" aria-label="Platform modules">
+  <div class="modules-inner">
+    <div class="modules-intro">
+      <span class="section-label">Four Integrated Modules</span>
+      <h2>Everything You Need in One Platform</h2>
+    </div>
+
+    <div class="modules-grid">
+      <!-- M3: Volatility Engine -->
+      <a href="/volatility-engine" class="module-card" style="--accent-color: rgba(212,160,23,.5)">
+        <span class="mc-number">MODULE 3 · FIRST STEP</span>
+        <span class="mc-icon">⚡</span>
+        <h3 class="mc-name">Volatility Engine</h3>
+        <p class="mc-tagline">IV RANK · IV PERCENTILE · REGIME CLASSIFICATION</p>
+        <p class="mc-desc">Determine whether implied volatility is historically high or low, classify the current market regime, and get strategy recommendations based on mean-reversion logic.</p>
+        <div class="mc-features">
+          <span class="mc-feature">IV Rank Calculator</span>
+          <span class="mc-feature">IV Percentile</span>
+          <span class="mc-feature">HV Comparison</span>
+          <span class="mc-feature">Volatility Hunter Game</span>
+        </div>
+        <span class="mc-cta">Open Volatility Engine →</span>
       </a>
-      <a href="/scenarios" class="tool-card">
-        <div class="tool-icon">🌩</div>
-        <h3>Scenario Engine</h3>
-        <p>Stress-test your position across 6 market scenarios — Base, Mild Drop, Crash, Big Rally, Vol Spike, and Black Swan. All compared side by side.</p>
-        <span class="tool-link">Run Scenarios →</span>
+
+      <!-- M4: Decay Optimizer -->
+      <a href="/decay-optimizer" class="module-card" style="--accent-color: rgba(77,255,145,.4)">
+        <span class="mc-number">MODULE 4 · SECOND STEP</span>
+        <span class="mc-icon">⏱</span>
+        <h3 class="mc-name">Decay Optimizer</h3>
+        <p class="mc-tagline">THETA TIMING · ENTRY WINDOW · GAMMA RISK</p>
+        <p class="mc-desc">Identify the optimal entry point in the weekly options cycle. Understand when theta decay works for you, when gamma risk is dangerous, and when to avoid trading entirely.</p>
+        <div class="mc-features">
+          <span class="mc-feature">DTE Signal Engine</span>
+          <span class="mc-feature">Gamma Risk Meter</span>
+          <span class="mc-feature">Event Calendar</span>
+          <span class="mc-feature">Theta Hunter Game</span>
+        </div>
+        <span class="mc-cta">Open Decay Optimizer →</span>
       </a>
-      <a href="/portfolio" class="tool-card">
-        <div class="tool-icon">📊</div>
-        <h3>Portfolio Dashboard</h3>
-        <p>Add unlimited positions dynamically. See aggregated Greeks, risk gauges, P&L breakdown, and AI-powered recommendations.</p>
-        <span class="tool-link">Open Portfolio →</span>
+
+      <!-- M2: Strategy Lab -->
+      <a href="/strategy-lab" class="module-card" style="--accent-color: rgba(91,158,244,.4)">
+        <span class="mc-number">MODULE 2 · THIRD STEP</span>
+        <span class="mc-icon">📐</span>
+        <h3 class="mc-name">Strategy Lab</h3>
+        <p class="mc-tagline">STRATEGY BUILDER · PAYOFF CHARTS · COMPARISON</p>
+        <p class="mc-desc">Build, visualise, and compare 12 options strategies. See real-time payoff charts, Greeks profiles, breakeven points, and max profit/loss for any market condition.</p>
+        <div class="mc-features">
+          <span class="mc-feature">12 Strategies</span>
+          <span class="mc-feature">Payoff Charts</span>
+          <span class="mc-feature">Strategy Compare</span>
+          <span class="mc-feature">Scenario Simulator</span>
+        </div>
+        <span class="mc-cta">Open Strategy Lab →</span>
+      </a>
+
+      <!-- M1: Portfolio Dashboard -->
+      <a href="/portfolio" class="module-card" style="--accent-color: rgba(168,85,247,.4)">
+        <span class="mc-number">MODULE 1 · FOURTH STEP</span>
+        <span class="mc-icon">📊</span>
+        <h3 class="mc-name">Portfolio Dashboard</h3>
+        <p class="mc-tagline">GREEKS AGGREGATION · RISK LIMITS · EXPOSURE</p>
+        <p class="mc-desc">Aggregate Greeks across all your positions, monitor portfolio-level delta, gamma, theta, and vega exposure, and receive alerts when risk limits are breached.</p>
+        <div class="mc-features">
+          <span class="mc-feature">Greeks Aggregator</span>
+          <span class="mc-feature">Risk Alerts</span>
+          <span class="mc-feature">BSM Calculator</span>
+          <span class="mc-feature">Exposure Analysis</span>
+        </div>
+        <span class="mc-cta">Open Portfolio Dashboard →</span>
       </a>
     </div>
-  </section>
 
-  {# Campaign levels #}
-  <section class="home-section">
-    <h2 class="section-title">🎮 6-Level Campaign</h2>
-    <p class="section-sub">Complete each level to unlock the next. Progress is saved in your browser.</p>
-    <div class="campaign-grid">
-      {% set levels = [
-        (1,"Delta Rookie","Δ","Long 1 lot ATM Call. Keep delta ±20 for 8 moves.","delta-color"),
-        (2,"Delta Apprentice","Δ","Long 3 lots OTM Call. Bigger position, bigger moves.","delta-color"),
-        (3,"Gamma Guardian","Γ","Short 2 lots ATM Call. Near-expiry gamma is deadly.","gamma-color"),
-        (4,"Theta Harvester","Θ","Short Strangle. Collect theta — but manage delta risk.","theta-color"),
-        (5,"Vega Voyager","ν","Long Straddle on earnings. Time the vol exit perfectly.","vega-color"),
-        (6,"Greek Grandmaster","⚡","Crisis Mode. All Greeks. 6 extreme moves. Survive.","accent"),
-      ] %}
-      {% for num, name, sym, desc, color in levels %}
-      <a href="/arena" class="campaign-card">
-        <div class="cc-num">{{ '%02d'|format(num) }}</div>
-        <div class="cc-sym {{ color }}">{{ sym }}</div>
-        <div class="cc-name">{{ name }}</div>
-        <div class="cc-desc">{{ desc }}</div>
+    <!-- Secondary tools -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--sp-md);margin-top:var(--sp-md)">
+      <a href="/study" class="module-card" style="flex-direction:row;align-items:center;gap:var(--sp-md);padding:var(--sp-md) var(--sp-lg)">
+        <span style="font-size:1.4rem">📚</span>
+        <div>
+          <div class="mc-name" style="font-size:.82rem;margin-bottom:2px">Study Hub</div>
+          <div class="mc-tagline">All Greeks explained with examples</div>
+        </div>
       </a>
-      {% endfor %}
+      <a href="/calculator" class="module-card" style="flex-direction:row;align-items:center;gap:var(--sp-md);padding:var(--sp-md) var(--sp-lg)">
+        <span style="font-size:1.4rem">🔢</span>
+        <div>
+          <div class="mc-name" style="font-size:.82rem;margin-bottom:2px">BSM Calculator</div>
+          <div class="mc-tagline">Black-Scholes, Binomial, Put-Call Parity</div>
+        </div>
+      </a>
+      <a href="/scenarios" class="module-card" style="flex-direction:row;align-items:center;gap:var(--sp-md);padding:var(--sp-md) var(--sp-lg)">
+        <span style="font-size:1.4rem">📈</span>
+        <div>
+          <div class="mc-name" style="font-size:.82rem;margin-bottom:2px">Scenarios</div>
+          <div class="mc-tagline">IV and strike scenario matrix</div>
+        </div>
+      </a>
+      <a href="/arena" class="module-card" style="flex-direction:row;align-items:center;gap:var(--sp-md);padding:var(--sp-md) var(--sp-lg)">
+        <span style="font-size:1.4rem">🏟</span>
+        <div>
+          <div class="mc-name" style="font-size:.82rem;margin-bottom:2px">Arena</div>
+          <div class="mc-tagline">Campaign challenges and simulation</div>
+        </div>
+      </a>
     </div>
-    <div style="text-align:center;margin-top:1.5rem;">
-      <a href="/arena" class="btn btn-primary btn-lg">🎮 Enter the Arena</a>
-    </div>
-  </section>
+  </div>
+</section>
 
-</div>
+<!-- ═══ USE CASES ═══ -->
+<section class="usecases-section" aria-label="Who this platform helps">
+  <div class="usecases-inner">
+    <div style="text-align:center;margin-bottom:0">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase;display:block;margin-bottom:10px">Built For</span>
+      <h2 style="font-family:'Cinzel',serif;font-size:clamp(1.3rem,3vw,1.9rem);color:var(--gold);letter-spacing:.05em">Who Uses This Platform</h2>
+    </div>
+    <div class="uc-grid">
+      <div class="uc-card">
+        <div class="uc-icon">🎓</div>
+        <h3 class="uc-title">Options Learners</h3>
+        <p class="uc-text">Undergraduate and MBA students learning derivatives through interactive simulators, visual payoff charts, and gamified challenges — not textbooks.</p>
+      </div>
+      <div class="uc-card">
+        <div class="uc-icon">📡</div>
+        <h3 class="uc-title">Volatility Traders</h3>
+        <p class="uc-text">Systematic traders using IV Rank and IV Percentile to identify premium-selling opportunities and time mean-reversion strategies.</p>
+      </div>
+      <div class="uc-card">
+        <div class="uc-icon">⏰</div>
+        <h3 class="uc-title">Weekly Options Sellers</h3>
+        <p class="uc-text">Iron condor and credit spread traders who need to know precisely when to enter, when gamma risk is dangerous, and which events to avoid.</p>
+      </div>
+      <div class="uc-card">
+        <div class="uc-icon">🛡</div>
+        <h3 class="uc-title">Risk Managers</h3>
+        <p class="uc-text">Portfolio managers tracking aggregate Greeks exposure across multiple positions, monitoring delta and vega limits in real time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FINAL CTA ═══ -->
+<section class="final-cta" aria-label="Get started">
+  <div class="final-cta-inner">
+    <h2>Ready to Trade with Intelligence?</h2>
+    <p>Begin with the Volatility Engine to identify the current market regime — then follow the 4-step decision process to a fully analysed trade.</p>
+    <div class="final-cta-actions">
+      <a href="/volatility-engine" class="btn btn-primary btn-lg">
+        Start with Volatility Engine →
+      </a>
+      <a href="/study" class="btn btn-ghost btn-lg">
+        Learn the Greeks first
+      </a>
+    </div>
+  </div>
+</section>
+
 {% endblock %}
