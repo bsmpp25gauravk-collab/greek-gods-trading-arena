@@ -1,1001 +1,568 @@
 {% extends "base.html" %}
-{% block title %}Volatility Engine — IV Intelligence System{% endblock %}
+{% set show_workflow = true %}
+{% set workflow_step = 1 %}
+{% block title %}Volatility Engine — IV Rank & Percentile{% endblock %}
 
 {% block content %}
-<!-- =====================================================================
-     VOLATILITY ENGINE — Module 3: IV Rank & Percentile Trading System
-     Integrates with existing Greek Gods Arena design system
-     ===================================================================== -->
-
 <style>
-/* ── Module-specific variables (extend existing design system) ── */
-:root {
-  --vol-high:   #ff4d4d;
-  --vol-low:    #4dff91;
-  --vol-neutral:#d4a017;
-  --glass:      rgba(13,14,26,.72);
-  --card-border:1px solid rgba(212,160,23,.18);
-  --radius:     12px;
+/* ── Page-specific overrides ── */
+.signal-panel {
+  background: var(--card-bg); border: var(--card-border);
+  border-radius: var(--card-radius); padding: var(--card-pad);
+  backdrop-filter: blur(12px);
 }
+.signal-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--sp-md); flex-wrap: wrap; gap: var(--sp-sm);
+}
+.signal-panel-title {
+  font-family: 'Cinzel', serif; font-size: 0.88rem;
+  color: var(--gold); letter-spacing: 0.06em;
+}
+.signal-output {
+  display: none;
+  animation: fadeInUp .35s ease;
+}
+.signal-output.visible { display: block; }
 
-/* ── Page header ── */
-.ve-hero {
-  background: linear-gradient(135deg, #0d0e1a 0%, #12142a 60%, #0d1520 100%);
-  border-bottom: 1px solid rgba(212,160,23,.25);
-  padding: 3.5rem 2rem 2.5rem;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-.ve-hero::before {
-  content:'';
-  position:absolute;inset:0;
-  background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(212,160,23,.08) 0%, transparent 70%);
-  pointer-events:none;
-}
-.ve-hero h1 {
-  font-family:'Cinzel',serif;
-  font-size:clamp(1.6rem,4vw,2.8rem);
-  color:var(--gold);
-  letter-spacing:.06em;
-  margin:0 0 .4rem;
-}
-.ve-hero .subtitle {
-  font-family:'Crimson Pro',serif;
-  font-size:1.15rem;
-  color:rgba(255,255,255,.6);
-  margin:0 0 1rem;
-  font-style:italic;
-}
-.module-badge {
-  display:inline-block;
-  background:rgba(212,160,23,.12);
-  border:1px solid rgba(212,160,23,.35);
-  border-radius:20px;
-  font-family:'JetBrains Mono',monospace;
-  font-size:.72rem;
-  color:var(--gold);
-  padding:.25rem .9rem;
-  letter-spacing:.08em;
-}
-
-/* ── Flow breadcrumb ── */
-.flow-bar {
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:.5rem;
-  flex-wrap:wrap;
-  margin:1.4rem 0 0;
-  font-family:'JetBrains Mono',monospace;
-  font-size:.72rem;
-}
-.flow-step {
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:20px;
-  padding:.3rem .85rem;
-  color:rgba(255,255,255,.55);
-  white-space:nowrap;
-}
-.flow-step.active {
-  background:rgba(212,160,23,.15);
-  border-color:rgba(212,160,23,.4);
-  color:var(--gold);
-}
-.flow-arrow { color:rgba(255,255,255,.25); font-size:.85rem; }
-
-/* ── Section wrappers ── */
-.ve-section { padding:2.5rem 1.5rem; max-width:1200px; margin:0 auto; }
-.ve-section-title {
-  font-family:'Cinzel',serif;
-  font-size:1.2rem;
-  color:var(--gold);
-  letter-spacing:.08em;
-  margin:0 0 1.4rem;
-  padding-bottom:.6rem;
-  border-bottom:1px solid rgba(212,160,23,.2);
-  display:flex;
-  align-items:center;
-  gap:.7rem;
-}
-.ve-section-title .icon { font-size:1rem; }
-
-/* ── IV Calculator Panel ── */
-.calc-panel {
-  background:var(--glass);
-  border:var(--card-border);
-  border-radius:var(--radius);
-  padding:1.8rem;
-  backdrop-filter:blur(12px);
-  margin-bottom:2rem;
-}
-.calc-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:1rem;
-  margin-bottom:1.4rem;
-}
-.calc-field label {
-  display:block;
-  font-family:'JetBrains Mono',monospace;
-  font-size:.68rem;
-  color:rgba(255,255,255,.55);
-  letter-spacing:.06em;
-  margin-bottom:.4rem;
-  text-transform:uppercase;
-}
-.calc-field input {
-  width:100%;
-  background:rgba(0,0,0,.35);
-  border:1px solid rgba(212,160,23,.25);
-  border-radius:8px;
-  color:#fff;
-  font-family:'JetBrains Mono',monospace;
-  font-size:.95rem;
-  padding:.55rem .8rem;
-  outline:none;
-  transition:border-color .2s;
-  box-sizing:border-box;
-}
-.calc-field input:focus { border-color:var(--gold); }
-.calc-btn {
-  background:linear-gradient(135deg,#b8860b,#d4a017);
-  color:#0d0e1a;
-  border:none;
-  border-radius:8px;
-  padding:.7rem 2rem;
-  font-family:'Cinzel',serif;
-  font-size:.85rem;
-  font-weight:700;
-  letter-spacing:.06em;
-  cursor:pointer;
-  transition:opacity .2s, transform .1s;
-  width:100%;
-  margin-top:.5rem;
-}
-.calc-btn:hover { opacity:.9; transform:translateY(-1px); }
-.calc-btn:active { transform:translateY(0); }
-
-/* ── Results cards ── */
-.result-cards {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  gap:1rem;
-  margin-top:1.4rem;
-}
-.result-card {
-  background:rgba(0,0,0,.3);
-  border:1px solid rgba(212,160,23,.15);
-  border-radius:10px;
-  padding:1rem;
-  text-align:center;
-  transition:border-color .2s;
-}
-.result-card .label {
-  font-family:'JetBrains Mono',monospace;
-  font-size:.62rem;
-  color:rgba(255,255,255,.45);
-  letter-spacing:.07em;
-  text-transform:uppercase;
-  display:block;
-  margin-bottom:.4rem;
-}
-.result-card .value {
-  font-family:'JetBrains Mono',monospace;
-  font-size:1.5rem;
-  font-weight:700;
-  color:var(--gold);
-}
-.result-card .value.high { color:var(--vol-high); }
-.result-card .value.low  { color:var(--vol-low); }
-.result-card .value.neutral { color:var(--vol-neutral); }
-.result-card .sub {
-  font-size:.68rem;
-  color:rgba(255,255,255,.35);
-  font-family:'JetBrains Mono',monospace;
-  margin-top:.25rem;
-  display:block;
-}
-
-/* ── Gauge bars ── */
-.gauge-wrap { margin-top:1.5rem; }
-.gauge-row { margin-bottom:1rem; }
-.gauge-label {
-  display:flex;
-  justify-content:space-between;
-  font-family:'JetBrains Mono',monospace;
-  font-size:.72rem;
-  color:rgba(255,255,255,.55);
-  margin-bottom:.4rem;
+/* Gauge */
+.gauge-row { margin-bottom: var(--sp-sm); }
+.gauge-labels {
+  display: flex; justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-xs); color: var(--text-sub);
+  margin-bottom: 5px;
 }
 .gauge-track {
-  height:8px;
-  background:rgba(255,255,255,.08);
-  border-radius:4px;
-  overflow:hidden;
-  position:relative;
+  height: 8px; background: rgba(255,255,255,.07);
+  border-radius: 4px; overflow: hidden;
 }
 .gauge-fill {
-  height:100%;
-  border-radius:4px;
-  transition:width .8s cubic-bezier(.34,1.56,.64,1);
-  width:0%;
+  height: 100%; border-radius: 4px;
+  transition: width .9s cubic-bezier(.34,1.56,.64,1);
+  width: 0;
 }
-.gauge-fill.rank  { background:linear-gradient(90deg,#4dff91,#d4a017,#ff4d4d); }
-.gauge-fill.pctl  { background:linear-gradient(90deg,#4d91ff,#d4a017,#ff6b4d); }
-.gauge-fill.hv    { background:linear-gradient(90deg,#a855f7,#d4a017); }
+.gf-rank { background: linear-gradient(90deg,var(--c-green),var(--gold),var(--c-red)); }
+.gf-pctl { background: linear-gradient(90deg,var(--c-blue),var(--gold),var(--c-red)); }
 
-/* ── Regime Badge ── */
-.regime-box {
-  margin-top:1.5rem;
-  border-radius:10px;
-  padding:1.2rem 1.5rem;
-  border:2px solid;
-  display:none;
-  align-items:flex-start;
-  gap:1rem;
+/* Input grid */
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(155px,1fr));
+  gap: var(--sp-md); margin-bottom: var(--sp-md);
 }
-.regime-box.show { display:flex; }
-.regime-box.high { border-color:var(--vol-high); background:rgba(255,77,77,.08); }
-.regime-box.low  { border-color:var(--vol-low);  background:rgba(77,255,145,.08); }
-.regime-box.neutral { border-color:var(--vol-neutral); background:rgba(212,160,23,.08); }
-.regime-icon { font-size:2rem; flex-shrink:0; }
+
+/* Regime box */
+.regime-box {
+  border-radius: 10px; padding: var(--sp-md) var(--card-pad);
+  border: 2px solid; display: flex; align-items: flex-start;
+  gap: var(--sp-md); margin-top: var(--sp-md); display: none;
+}
+.regime-box.visible { display: flex; }
+.regime-box.rg-high { border-color: var(--c-red-line); background: var(--c-red-bg); }
+.regime-box.rg-low  { border-color: var(--c-green-line); background: var(--c-green-bg); }
+.regime-box.rg-neut { border-color: var(--c-amber-line); background: var(--c-amber-bg); }
+.regime-icon { font-size: 2rem; flex-shrink: 0; }
 .regime-text h3 {
-  font-family:'Cinzel',serif;
-  font-size:1rem;
-  margin:0 0 .3rem;
-  letter-spacing:.06em;
+  font-family: 'Cinzel', serif; font-size: 0.92rem;
+  letter-spacing: 0.05em; margin-bottom: 5px;
 }
 .regime-text p {
-  font-family:'Crimson Pro',serif;
-  font-size:.95rem;
-  color:rgba(255,255,255,.7);
-  margin:0;
-  line-height:1.5;
+  font-size: 0.88rem; color: var(--text-sub); line-height: 1.5;
 }
 
-/* ── Strategy Recommendations ── */
-.strategy-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-  gap:1rem;
-}
-.strat-card {
-  background:var(--glass);
-  border:var(--card-border);
-  border-radius:var(--radius);
-  padding:1.2rem;
-  backdrop-filter:blur(8px);
-  transition:border-color .2s, transform .2s;
-  cursor:pointer;
-}
-.strat-card:hover { border-color:rgba(212,160,23,.5); transform:translateY(-2px); }
-.strat-card .strat-name {
-  font-family:'Cinzel',serif;
-  font-size:.88rem;
-  color:var(--gold);
-  letter-spacing:.05em;
-  margin:0 0 .4rem;
-}
-.strat-card .strat-regime {
-  font-family:'JetBrains Mono',monospace;
-  font-size:.6rem;
-  letter-spacing:.07em;
-  padding:.18rem .55rem;
-  border-radius:10px;
-  display:inline-block;
-  margin-bottom:.7rem;
-}
-.strat-card .strat-regime.sell { background:rgba(255,77,77,.15); color:var(--vol-high); }
-.strat-card .strat-regime.buy  { background:rgba(77,255,145,.15); color:var(--vol-low); }
-.strat-card .strat-desc {
-  font-family:'Crimson Pro',serif;
-  font-size:.9rem;
-  color:rgba(255,255,255,.65);
-  line-height:1.45;
-  margin:0 0 .8rem;
-}
-.strat-card .strat-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
-.strat-btn {
-  font-family:'JetBrains Mono',monospace;
-  font-size:.62rem;
-  letter-spacing:.05em;
-  padding:.28rem .7rem;
-  border-radius:6px;
-  border:1px solid rgba(212,160,23,.3);
-  background:rgba(212,160,23,.08);
-  color:var(--gold);
-  cursor:pointer;
-  transition:background .2s;
-  text-decoration:none;
-  display:inline-block;
-}
-.strat-btn:hover { background:rgba(212,160,23,.18); color:var(--gold); }
-
-/* ── Rules Section ── */
-.rules-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-  gap:1.2rem;
-}
-.rule-card {
-  background:var(--glass);
-  border:var(--card-border);
-  border-radius:var(--radius);
-  padding:1.4rem;
-  backdrop-filter:blur(8px);
-}
-.rule-card h4 {
-  font-family:'Cinzel',serif;
-  font-size:.85rem;
-  color:var(--gold);
-  letter-spacing:.07em;
-  margin:0 0 .9rem;
-  padding-bottom:.5rem;
-  border-bottom:1px solid rgba(212,160,23,.15);
-}
-.rule-item {
-  display:flex;
-  gap:.6rem;
-  margin-bottom:.6rem;
-  font-family:'Crimson Pro',serif;
-  font-size:.92rem;
-  color:rgba(255,255,255,.7);
-  line-height:1.45;
-}
-.rule-item::before {
-  content:'▸';
-  color:var(--gold);
-  flex-shrink:0;
-  margin-top:.05em;
-}
-
-/* ── Position Sizing ── */
-.sizing-bars { display:flex; flex-direction:column; gap:.7rem; }
-.size-row {
-  display:grid;
-  grid-template-columns:1fr 60px 1fr;
-  align-items:center;
-  gap:.7rem;
-}
-.size-label {
-  font-family:'JetBrains Mono',monospace;
-  font-size:.7rem;
-  color:rgba(255,255,255,.55);
-  text-align:right;
-  white-space:nowrap;
-}
-.size-bar-wrap {
-  grid-column:3;
-  background:rgba(255,255,255,.06);
-  border-radius:4px;
-  height:10px;
-  overflow:hidden;
-}
-.size-bar { height:100%; border-radius:4px; }
-
-/* ── Volatility Hunter Game ── */
-.hunter-panel {
-  background: linear-gradient(135deg, rgba(13,14,26,.9) 0%, rgba(18,20,42,.9) 100%);
-  border: 1px solid rgba(212,160,23,.3);
-  border-radius: var(--radius);
-  padding: 2rem;
-  position: relative;
-  overflow: hidden;
-}
-.hunter-panel::before {
-  content: 'VOLATILITY HUNTER';
-  position: absolute;
-  top: 1rem; right: 1.2rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .58rem;
-  letter-spacing: .15em;
-  color: rgba(212,160,23,.2);
-}
-.scenario-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.scenario-info h3 {
-  font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
-  color: var(--gold);
-  margin: 0 0 .3rem;
-}
-.scenario-info p {
-  font-family: 'Crimson Pro', serif;
-  font-size: .95rem;
-  color: rgba(255,255,255,.6);
-  margin: 0;
-}
-.score-display {
-  text-align: center;
-  background: rgba(0,0,0,.3);
-  border: 1px solid rgba(212,160,23,.2);
-  border-radius: 8px;
-  padding: .7rem 1.2rem;
-  min-width: 100px;
-}
-.score-display .score-val {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.6rem;
-  color: var(--gold);
-  display: block;
-}
-.score-display .score-lbl {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .6rem;
-  color: rgba(255,255,255,.4);
-  letter-spacing: .08em;
-}
-
-.scenario-data {
+/* Strategy recs */
+.strat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: .8rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: rgba(0,0,0,.25);
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,.06);
+  grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
+  gap: var(--sp-sm);
+}
+.strat-rec-card {
+  background: rgba(0,0,0,.25); border: 1px solid rgba(212,160,23,.12);
+  border-radius: 10px; padding: var(--sp-md);
+  transition: border-color .2s;
+}
+.strat-rec-card:hover { border-color: rgba(212,160,23,.3); }
+.src-name {
+  font-family: 'Cinzel', serif; font-size: 0.82rem;
+  color: var(--gold); margin-bottom: 5px;
+}
+.src-regime {
+  display: inline-block; font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem; padding: 2px 7px; border-radius: 10px;
+  margin-bottom: 8px;
+}
+.src-sell { background: var(--c-red-bg); color: var(--c-red); }
+.src-buy  { background: var(--c-green-bg); color: var(--c-green); }
+.src-desc { font-size: 0.85rem; color: var(--text-sub); line-height: 1.45; margin-bottom: 10px; }
+.src-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Game */
+.game-card {
+  background: linear-gradient(135deg,rgba(13,14,26,.95),rgba(18,20,42,.95));
+  border: 1px solid rgba(212,160,23,.25); border-radius: var(--card-radius);
+  padding: var(--sp-lg); position: relative; overflow: hidden;
+}
+.game-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; flex-wrap: wrap;
+  gap: var(--sp-md); margin-bottom: var(--sp-lg);
+}
+.game-title {
+  font-family: 'Cinzel', serif; font-size: 1rem;
+  color: var(--gold); margin-bottom: 4px;
+}
+.game-subtitle { font-size: 0.88rem; color: var(--text-sub); }
+.game-score-box {
+  text-align: center; background: rgba(0,0,0,.3);
+  border: 1px solid rgba(212,160,23,.2); border-radius: 8px;
+  padding: 8px 16px; min-width: 80px;
+}
+.game-score-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem; color: var(--gold); display: block;
+}
+.game-score-lbl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.55rem; color: var(--text-dim);
+}
+.scenario-data {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(90px,1fr));
+  gap: 8px; margin-bottom: var(--sp-md);
+  padding: var(--sp-md); background: rgba(0,0,0,.2);
+  border-radius: 8px; border: 1px solid rgba(255,255,255,.05);
 }
 .sd-item { text-align: center; }
-.sd-item .sd-key {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .62rem;
-  color: rgba(255,255,255,.4);
-  letter-spacing: .06em;
-  display: block;
-  margin-bottom: .3rem;
-  text-transform: uppercase;
+.sd-key {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.58rem;
+  color: var(--text-dim); display: block; margin-bottom: 4px;
+  text-transform: uppercase; letter-spacing: .05em;
 }
-.sd-item .sd-val {
+.sd-val {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 1.1rem;
-  color: #fff;
-  font-weight: 700;
+  font-size: 1rem; color: var(--white); font-weight: 600;
 }
-
 .choices-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: .8rem;
-  margin-bottom: 1.2rem;
+  display: grid; grid-template-columns: repeat(auto-fill,minmax(190px,1fr));
+  gap: 8px; margin-bottom: var(--sp-md);
 }
 .choice-btn {
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 8px;
-  padding: .9rem 1rem;
-  text-align: left;
-  cursor: pointer;
-  transition: all .2s;
-  color: #fff;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 8px; padding: var(--sp-md); text-align: left;
+  cursor: pointer; transition: all .2s; color: var(--white);
 }
-.choice-btn:hover {
-  border-color: rgba(212,160,23,.4);
-  background: rgba(212,160,23,.07);
-}
-.choice-btn.correct {
-  border-color: var(--vol-low);
-  background: rgba(77,255,145,.1);
-}
-.choice-btn.wrong {
-  border-color: var(--vol-high);
-  background: rgba(255,77,77,.1);
-}
+.choice-btn:hover { border-color: rgba(212,160,23,.4); background: rgba(212,160,23,.06); }
+.choice-btn.correct { border-color: var(--c-green-line); background: var(--c-green-bg); }
+.choice-btn.wrong   { border-color: var(--c-red-line);   background: var(--c-red-bg); }
 .choice-name {
-  font-family: 'Cinzel', serif;
-  font-size: .82rem;
-  color: var(--gold);
-  display: block;
-  margin-bottom: .25rem;
+  font-family: 'Cinzel', serif; font-size: 0.78rem;
+  color: var(--gold); display: block; margin-bottom: 4px;
 }
-.choice-desc {
-  font-family: 'Crimson Pro', serif;
-  font-size: .82rem;
-  color: rgba(255,255,255,.55);
-}
-
+.choice-desc { font-size: 0.8rem; color: var(--text-sub); }
 .feedback-box {
-  background: rgba(0,0,0,.3);
-  border-radius: 8px;
-  padding: 1rem 1.2rem;
-  margin-top: 1rem;
-  border-left: 3px solid var(--gold);
-  display: none;
+  background: rgba(0,0,0,.28); border-radius: 8px;
+  padding: var(--sp-md); margin-top: var(--sp-sm);
+  border-left: 3px solid var(--gold); display: none;
 }
 .feedback-box.show { display: block; }
 .feedback-box p {
-  font-family: 'Crimson Pro', serif;
-  font-size: .95rem;
-  color: rgba(255,255,255,.75);
-  margin: 0 0 .6rem;
-  line-height: 1.5;
+  font-size: 0.9rem; color: var(--text-sub);
+  line-height: 1.5; margin-bottom: 8px;
 }
-.feedback-box .next-btn {
-  background: rgba(212,160,23,.15);
-  border: 1px solid rgba(212,160,23,.35);
-  border-radius: 6px;
-  padding: .45rem 1.2rem;
+.game-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: var(--sp-md); flex-wrap: wrap; gap: 8px;
+}
+.game-meta span {
   font-family: 'JetBrains Mono', monospace;
-  font-size: .72rem;
-  color: var(--gold);
-  cursor: pointer;
-  letter-spacing: .05em;
-  transition: background .2s;
-}
-.feedback-box .next-btn:hover { background: rgba(212,160,23,.25); }
-
-/* ── Education Cards ── */
-.edu-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.2rem;
-}
-.edu-card {
-  background: var(--glass);
-  border: var(--card-border);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  backdrop-filter: blur(8px);
-}
-.edu-card .edu-icon { font-size: 1.8rem; margin-bottom: .6rem; display: block; }
-.edu-card h4 {
-  font-family: 'Cinzel', serif;
-  font-size: .9rem;
-  color: var(--gold);
-  letter-spacing: .06em;
-  margin: 0 0 .6rem;
-}
-.edu-card p {
-  font-family: 'Crimson Pro', serif;
-  font-size: .92rem;
-  color: rgba(255,255,255,.65);
-  line-height: 1.55;
-  margin: 0;
-}
-.formula-box {
-  background: rgba(0,0,0,.4);
-  border: 1px solid rgba(212,160,23,.15);
-  border-radius: 6px;
-  padding: .6rem .9rem;
-  margin-top: .7rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .72rem;
-  color: rgba(212,160,23,.85);
-  line-height: 1.6;
-}
-
-/* ── Integration CTA ── */
-.integration-bar {
-  background: linear-gradient(90deg, rgba(212,160,23,.08) 0%, rgba(212,160,23,.03) 100%);
-  border: 1px solid rgba(212,160,23,.2);
-  border-radius: var(--radius);
-  padding: 1.5rem 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 2.5rem;
-}
-.integration-bar p {
-  font-family: 'Crimson Pro', serif;
-  font-size: 1rem;
-  color: rgba(255,255,255,.65);
-  margin: 0;
-}
-.integration-bar strong { color: var(--gold); }
-.int-links { display: flex; gap: .7rem; flex-wrap: wrap; }
-.int-link {
-  background: rgba(212,160,23,.1);
-  border: 1px solid rgba(212,160,23,.3);
-  border-radius: 20px;
-  padding: .4rem 1rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .7rem;
-  color: var(--gold);
-  text-decoration: none;
-  letter-spacing: .05em;
-  transition: background .2s;
-}
-.int-link:hover { background: rgba(212,160,23,.2); }
-
-/* ── Interpretation panel ── */
-.interp-panel {
-  background: rgba(0,0,0,.2);
-  border: 1px dashed rgba(212,160,23,.2);
-  border-radius: 10px;
-  padding: 1.2rem 1.5rem;
-  margin-top: 1rem;
-  display: none;
-}
-.interp-panel.show { display: block; }
-.interp-item {
-  font-family: 'Crimson Pro', serif;
-  font-size: .95rem;
-  color: rgba(255,255,255,.7);
-  padding: .4rem 0;
-  border-bottom: 1px solid rgba(255,255,255,.05);
-  display: flex;
-  gap: .6rem;
-  align-items: flex-start;
-}
-.interp-item:last-child { border-bottom: none; }
-.interp-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; margin-top: .45em; }
-
-/* ── Responsive ── */
-@media(max-width:600px) {
-  .ve-hero { padding: 2rem 1rem 1.8rem; }
-  .calc-grid { grid-template-columns: 1fr 1fr; }
-  .size-row { grid-template-columns: 1fr; }
-  .size-label { text-align: left; }
+  font-size: 0.62rem; color: var(--text-dim);
 }
 </style>
 
-<!-- HERO -->
-<div class="ve-hero">
-  <span class="module-badge">MODULE 3 — VOLATILITY ENGINE</span>
-  <h1>IV Rank &amp; Percentile<br>Trading System</h1>
-  <p class="subtitle">Volatility-based options decision engine — the brain of your platform</p>
-
-  <div class="flow-bar">
-    <span class="flow-step active">⚡ Volatility Engine</span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><a href="/strategy-lab" style="color:inherit;text-decoration:none">📐 Strategy Lab</a></span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><a href="/portfolio" style="color:inherit;text-decoration:none">📊 Greeks Dashboard</a></span>
-    <span class="flow-arrow">→</span>
-    <span class="flow-step"><a href="/arena" style="color:inherit;text-decoration:none">🏟 Arena</a></span>
+<!-- ── Page header ── -->
+<div class="page-header">
+  <div class="page-header-inner">
+    <div class="page-header-left">
+      <div class="page-badge">⚡ Module 3 · First Step</div>
+      <h1 class="page-title">Volatility Engine</h1>
+      <p class="page-subtitle">IV Rank, IV Percentile, and volatility regime classification — decide whether to buy or sell options.</p>
+    </div>
+    <div class="page-header-right">
+      <span class="signal-badge sb-blue">
+        <span class="sb-dot"></span>Analysis Tool
+      </span>
+    </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     SECTION 1 — IV CALCULATOR
-     ═══════════════════════════════════════════════════════════ -->
-<div class="ve-section">
-  <h2 class="ve-section-title"><span class="icon">⚡</span>IV Analysis Calculator</h2>
+<!-- ── SECTION 1: Decision panel (top, most visible) ── -->
+<div class="section section-sm">
 
-  <div class="calc-panel">
-    <div class="calc-grid">
-      <div class="calc-field">
-        <label>Current IV (%)</label>
-        <input type="number" id="currentIV" value="25" min="1" max="200" step="0.1">
+  <!-- Top metric cards — shown after calculation -->
+  <div class="grid-metrics mb-md" id="topMetrics" style="display:none">
+    <div class="metric-card">
+      <span class="metric-label">Current IV
+        <span class="tooltip-wrap">
+          <span class="tooltip-icon">?</span>
+          <span class="tooltip-body">Implied volatility extracted from current option prices. The market's forecast of future movement.</span>
+        </span>
+      </span>
+      <span class="metric-value val-gold" id="m-iv">—</span>
+      <span class="metric-sub">Implied Volatility</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">IV Rank
+        <span class="tooltip-wrap">
+          <span class="tooltip-icon">?</span>
+          <span class="tooltip-body">Where today's IV sits within its 52-week high-low range. 0% = at yearly low, 100% = at yearly high.</span>
+        </span>
+      </span>
+      <span class="metric-value" id="m-rank">—</span>
+      <span class="metric-sub">vs 52-week range</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">IV Percentile
+        <span class="tooltip-wrap">
+          <span class="tooltip-icon">?</span>
+          <span class="tooltip-body">% of days in the past year where IV was lower than today. More robust than IV Rank — considers the full distribution.</span>
+        </span>
+      </span>
+      <span class="metric-value" id="m-pctl">—</span>
+      <span class="metric-sub">days below current IV</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">HV (20-day)</span>
+      <span class="metric-value" id="m-hv">—</span>
+      <span class="metric-sub">Historical Volatility</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">IV vs HV</span>
+      <span class="metric-value" id="m-spread">—</span>
+      <span class="metric-sub">Premium / Discount</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Signal</span>
+      <span class="metric-value" id="m-signal" style="font-size:0.85rem">—</span>
+      <span class="metric-sub" id="m-signal-sub">—</span>
+    </div>
+  </div>
+
+  <!-- Input panel -->
+  <div class="signal-panel">
+    <div class="signal-panel-header">
+      <span class="signal-panel-title">IV Analysis Calculator</span>
+      <span class="signal-badge sb-blue" id="calcStatus">
+        <span class="sb-dot"></span>Enter values to analyse
+      </span>
+    </div>
+
+    <div class="input-grid">
+      <div class="field-group">
+        <label class="field-label" for="currentIV">Current IV (%)
+          <span class="tooltip-wrap"><span class="tooltip-icon">?</span>
+          <span class="tooltip-body">The implied volatility of the at-the-money option for your underlying today.</span></span>
+        </label>
+        <input class="field-input" type="number" id="currentIV" value="25" min="1" max="200" step="0.1">
+        <span class="field-error" id="err-iv"></span>
       </div>
-      <div class="calc-field">
-        <label>52-Wk High IV (%)</label>
-        <input type="number" id="highIV" value="40" min="1" max="300" step="0.1">
+      <div class="field-group">
+        <label class="field-label" for="highIV">52-Wk High IV (%)</label>
+        <input class="field-input" type="number" id="highIV" value="40" min="1" max="300" step="0.1">
       </div>
-      <div class="calc-field">
-        <label>52-Wk Low IV (%)</label>
-        <input type="number" id="lowIV" value="15" min="1" max="200" step="0.1">
+      <div class="field-group">
+        <label class="field-label" for="lowIV">52-Wk Low IV (%)</label>
+        <input class="field-input" type="number" id="lowIV" value="15" min="1" max="200" step="0.1">
       </div>
-      <div class="calc-field">
-        <label>Historical Vol / HV (%)</label>
-        <input type="number" id="hvInput" value="18" min="1" max="200" step="0.1">
+      <div class="field-group">
+        <label class="field-label" for="hvInput">HV — 20-day (%)</label>
+        <input class="field-input" type="number" id="hvInput" value="18" min="1" max="200" step="0.1">
       </div>
-      <div class="calc-field">
-        <label>Days &lt; Current IV (out of 252)</label>
-        <input type="number" id="daysBelow" value="180" min="0" max="252" step="1">
+      <div class="field-group">
+        <label class="field-label" for="daysBelow">Days below current IV
+          <span class="tooltip-wrap"><span class="tooltip-icon">?</span>
+          <span class="tooltip-body">Out of 252 trading days, how many had IV lower than today? Used to calculate IV Percentile.</span></span>
+        </label>
+        <input class="field-input" type="number" id="daysBelow" value="180" min="0" max="252" step="1">
       </div>
-      <div class="calc-field">
-        <label>Underlying / Symbol</label>
-        <input type="text" id="symbolInput" value="NIFTY" style="text-transform:uppercase">
+      <div class="field-group">
+        <label class="field-label" for="symbolInput">Underlying</label>
+        <input class="field-input" type="text" id="symbolInput" value="NIFTY" style="text-transform:uppercase">
       </div>
     </div>
-    <button class="calc-btn" onclick="calcIV()">⚡ CALCULATE IV METRICS</button>
 
-    <!-- Results -->
-    <div id="resultsArea" style="display:none">
-      <div class="result-cards">
-        <div class="result-card">
-          <span class="label">Current IV</span>
-          <span class="value" id="r-iv">—</span>
-          <span class="sub">Implied Volatility</span>
-        </div>
-        <div class="result-card">
-          <span class="label">IV Rank</span>
-          <span class="value" id="r-rank">—</span>
-          <span class="sub">vs 52-wk range</span>
-        </div>
-        <div class="result-card">
-          <span class="label">IV Percentile</span>
-          <span class="value" id="r-pctl">—</span>
-          <span class="sub">days below current</span>
-        </div>
-        <div class="result-card">
-          <span class="label">HV</span>
-          <span class="value" id="r-hv">—</span>
-          <span class="sub">Historical Vol</span>
-        </div>
-        <div class="result-card">
-          <span class="label">IV vs HV</span>
-          <span class="value" id="r-spread">—</span>
-          <span class="sub">Premium / Discount</span>
-        </div>
-        <div class="result-card">
-          <span class="label">Signal</span>
-          <span class="value" id="r-signal" style="font-size:1rem">—</span>
-          <span class="sub" id="r-signal-sub">—</span>
-        </div>
-      </div>
+    <button class="btn btn-primary" id="calcBtn" onclick="calcIV()" style="width:100%">
+      ⚡ Analyse Volatility Regime
+    </button>
+
+    <!-- Output area (shown after calculation) -->
+    <div class="signal-output" id="signalOutput">
 
       <!-- Gauge bars -->
-      <div class="gauge-wrap">
+      <div style="margin-top:var(--sp-lg)">
         <div class="gauge-row">
-          <div class="gauge-label"><span>IV RANK</span><span id="g-rank-val">0%</span></div>
-          <div class="gauge-track"><div class="gauge-fill rank" id="g-rank"></div></div>
+          <div class="gauge-labels">
+            <span>IV RANK</span><span id="g-rank-val" class="text-gold">—</span>
+          </div>
+          <div class="gauge-track"><div class="gauge-fill gf-rank" id="g-rank" style="width:0%"></div></div>
         </div>
         <div class="gauge-row">
-          <div class="gauge-label"><span>IV PERCENTILE</span><span id="g-pctl-val">0%</span></div>
-          <div class="gauge-track"><div class="gauge-fill pctl" id="g-pctl"></div></div>
+          <div class="gauge-labels">
+            <span>IV PERCENTILE</span><span id="g-pctl-val" class="text-gold">—</span>
+          </div>
+          <div class="gauge-track"><div class="gauge-fill gf-pctl" id="g-pctl" style="width:0%"></div></div>
         </div>
       </div>
 
-      <!-- Regime -->
-      <div class="regime-box high" id="regime-high">
+      <!-- Regime box -->
+      <div class="regime-box rg-high" id="regime-high">
         <span class="regime-icon">🔥</span>
         <div class="regime-text">
-          <h3 style="color:var(--vol-high)">HIGH VOLATILITY REGIME</h3>
-          <p>Options are expensive relative to history. IV is priced rich — mean reversion favours <strong>premium selling</strong>. Consider Iron Condors, Short Strangles, or Credit Spreads. Collect elevated premium and let theta + vega work in your favour.</p>
+          <h3 style="color:var(--c-red)">HIGH VOLATILITY REGIME — SELL PREMIUM</h3>
+          <p id="regime-high-text"></p>
         </div>
       </div>
-      <div class="regime-box low" id="regime-low">
+      <div class="regime-box rg-low" id="regime-low">
         <span class="regime-icon">❄️</span>
         <div class="regime-text">
-          <h3 style="color:var(--vol-low)">LOW VOLATILITY REGIME</h3>
-          <p>Options are cheap relative to history. IV is priced discount — potential for expansion favours <strong>premium buying</strong>. Consider Long Straddles, Long Strangles, or Debit Spreads. Position for the inevitable move.</p>
+          <h3 style="color:var(--c-green)">LOW VOLATILITY REGIME — BUY PREMIUM</h3>
+          <p id="regime-low-text"></p>
         </div>
       </div>
-      <div class="regime-box neutral" id="regime-neutral">
+      <div class="regime-box rg-neut" id="regime-neutral">
         <span class="regime-icon">⚖️</span>
         <div class="regime-text">
-          <h3 style="color:var(--vol-neutral)">NEUTRAL VOLATILITY REGIME</h3>
-          <p>Mixed signals — no strong directional edge from IV alone. Reduce size, be selective, and wait for clearer regime confirmation before committing to a strategy bias.</p>
+          <h3 style="color:var(--c-amber)">NEUTRAL REGIME — REDUCE SIZE</h3>
+          <p id="regime-neutral-text"></p>
         </div>
       </div>
 
-      <!-- Interpretation panel -->
-      <div class="interp-panel show" id="interpPanel"></div>
+      <!-- Interpretation -->
+      <div class="interp-box mt-md" id="interpPanel"></div>
+
+    </div>
+  </div>
+
+  <!-- Strategy recommendations (shown after calc) -->
+  <div id="stratSection" style="display:none;margin-top:var(--sp-md)">
+    <div class="card">
+      <div class="card-title">📐 Suggested Strategies Based on Regime</div>
+      <div class="strat-grid" id="stratGrid"></div>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     SECTION 2 — STRATEGY RECOMMENDATIONS
-     ═══════════════════════════════════════════════════════════ -->
-<div class="ve-section" style="padding-top:0">
-  <h2 class="ve-section-title"><span class="icon">📐</span>Strategy Recommendations</h2>
-
-  <div id="strategySection">
-    <!-- High IV Strategies -->
-    <p style="font-family:'Crimson Pro',serif;font-size:.9rem;color:rgba(255,255,255,.45);margin:0 0 1rem;font-style:italic">
-      Run the calculator above to get regime-specific recommendations ↑
-    </p>
-    <div class="strategy-grid" id="stratGrid">
-      <!-- populated by JS -->
-    </div>
-  </div>
-
-  <!-- Integration bar -->
-  <div class="integration-bar" style="margin-top:1.8rem">
-    <p>Regime identified → <strong>Open the strategy in Strategy Lab</strong> to see payoff charts, Greeks, and full risk analysis.</p>
-    <div class="int-links">
-      <a href="/strategy-lab" class="int-link">📐 Strategy Lab</a>
-      <a href="/portfolio" class="int-link">📊 Greeks Dashboard</a>
-      <a href="/calculator" class="int-link">🔢 BSM Calculator</a>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════════
-     SECTION 3 — TRADING RULES
-     ═══════════════════════════════════════════════════════════ -->
-<div class="ve-section" style="padding-top:0">
-  <h2 class="ve-section-title"><span class="icon">📋</span>Rule-Based Trading System</h2>
-
-  <div class="rules-grid">
-    <div class="rule-card">
-      <h4>🔴 Entry — Premium Selling (High IV)</h4>
-      <div class="rule-item">IV Rank &gt; 50% (preferably &gt; 60%)</div>
-      <div class="rule-item">IV Percentile &gt; 50% (preferably &gt; 60%)</div>
-      <div class="rule-item">No major event within next 7 days</div>
-      <div class="rule-item">Sufficient option liquidity — tight bid-ask spread</div>
-      <div class="rule-item">IV &gt; HV confirms premium is rich</div>
-    </div>
-    <div class="rule-card">
-      <h4>🟢 Entry — Premium Buying (Low IV)</h4>
-      <div class="rule-item">IV Rank &lt; 30%</div>
-      <div class="rule-item">IV Percentile &lt; 40%</div>
-      <div class="rule-item">Catalyst expected: earnings, event, policy</div>
-      <div class="rule-item">Risk capital allocated appropriately</div>
-      <div class="rule-item">IV &lt; HV confirms options are cheap</div>
-    </div>
-    <div class="rule-card">
-      <h4>💰 Profit Targets</h4>
-      <div class="rule-item">Premium selling → close at 50% of max profit</div>
-      <div class="rule-item">Premium buying → target 100%+ of premium paid</div>
-      <div class="rule-item">Partial exits allowed at 25% intervals</div>
-      <div class="rule-item">Never let a winner turn into a full loser</div>
-    </div>
-    <div class="rule-card">
-      <h4>🛑 Stop Losses &amp; Time Exits</h4>
-      <div class="rule-item">Selling → stop at 200% of credit received</div>
-      <div class="rule-item">Buying → stop at 50–75% of premium paid</div>
-      <div class="rule-item">Close ALL positions at 21 DTE (gamma risk)</div>
-      <div class="rule-item">Roll if profitable and setup still valid</div>
-    </div>
-  </div>
-
-  <!-- Position Sizing -->
-  <div style="margin-top:1.5rem">
-    <h3 style="font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold);letter-spacing:.07em;margin:0 0 1rem">POSITION SIZING BY IV RANK</h3>
-    <div class="sizing-bars">
-      <div class="size-row">
-        <span class="size-label">IV Rank &gt; 70</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(255,77,77,.9);text-align:center">MAX</span>
-        <div class="size-bar-wrap"><div class="size-bar" style="width:100%;background:linear-gradient(90deg,#d4a017,#ff4d4d)"></div></div>
-      </div>
-      <div class="size-row">
-        <span class="size-label">IV Rank 50–70</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(212,160,23,.9);text-align:center">STD</span>
-        <div class="size-bar-wrap"><div class="size-bar" style="width:75%;background:var(--gold)"></div></div>
-      </div>
-      <div class="size-row">
-        <span class="size-label">IV Rank 30–50</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(200,200,200,.7);text-align:center">RED</span>
-        <div class="size-bar-wrap"><div class="size-bar" style="width:40%;background:#888"></div></div>
-      </div>
-      <div class="size-row">
-        <span class="size-label">IV Rank &lt; 30</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(77,255,145,.9);text-align:center">BUY</span>
-        <div class="size-bar-wrap"><div class="size-bar" style="width:30%;background:var(--vol-low)"></div></div>
+<!-- ── SECTION 2: Trading Rules (accordion) ── -->
+<div class="section" style="padding-top:0">
+  <h2 class="section-title">📋 Rule-Based System</h2>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="true">
+        <span class="acc-trigger-title">🔴 Entry Rules — High IV (Sell Premium)</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body open">
+        <ul class="rule-list">
+          <li>IV Rank above 50% — preferably above 60%</li>
+          <li>IV Percentile above 50% — confirms the full distribution is elevated</li>
+          <li>IV exceeds HV by more than 2 points — options priced rich</li>
+          <li>No major event (RBI, Fed, earnings) within the trade window</li>
+          <li>Sufficient option liquidity — tight bid-ask spreads at your strikes</li>
+        </ul>
       </div>
     </div>
-    <p style="font-family:'Crimson Pro',serif;font-size:.85rem;color:rgba(255,255,255,.4);margin:.9rem 0 0">
-      Max 2–5% of account per position · Max 10 concurrent positions · Diversify across sectors
-    </p>
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="false">
+        <span class="acc-trigger-title">🟢 Entry Rules — Low IV (Buy Premium)</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body">
+        <ul class="rule-list">
+          <li>IV Rank below 30%</li>
+          <li>IV Percentile below 40%</li>
+          <li>Catalyst expected — earnings, event, or policy announcement</li>
+          <li>IV significantly below HV — options priced cheap vs realised moves</li>
+          <li>Risk capital allocated appropriately — premium buying requires patience</li>
+        </ul>
+      </div>
+    </div>
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="false">
+        <span class="acc-trigger-title">💰 Profit Targets &amp; Stop Losses</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body">
+        <ul class="rule-list">
+          <li>Premium selling → close at 50% of maximum profit received</li>
+          <li>Premium buying → target 100%+ of premium paid or event-based exit</li>
+          <li>Stop loss selling → exit at 200% of credit received</li>
+          <li>Stop loss buying → exit at 50–75% of premium paid</li>
+          <li>Time-based → close all weekly positions at 21 DTE regardless of P&amp;L</li>
+        </ul>
+      </div>
+    </div>
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="false">
+        <span class="acc-trigger-title">📏 Position Sizing by IV Rank</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body">
+        <ul class="rule-list">
+          <li>IV Rank above 70% → maximum allocation to premium selling (within limits)</li>
+          <li>IV Rank 50–70% → standard allocation for premium selling</li>
+          <li>IV Rank 30–50% → reduced allocation, consider mixed approach</li>
+          <li>IV Rank below 30% → premium buying allocation, patient holding required</li>
+          <li>Maximum 2–5% of account per position · max 10 concurrent positions</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     SECTION 4 — VOLATILITY HUNTER (Gamified Simulation)
-     ═══════════════════════════════════════════════════════════ -->
-<div class="ve-section" style="padding-top:0">
-  <h2 class="ve-section-title"><span class="icon">🎯</span>Volatility Hunter — Simulation Mode</h2>
-
-  <div class="hunter-panel">
-    <div class="scenario-header">
-      <div class="scenario-info">
-        <h3 id="sc-title">Loading scenario...</h3>
-        <p id="sc-context">Analyse the IV data and choose the correct strategy bias.</p>
+<!-- ── SECTION 3: Volatility Hunter Game ── -->
+<div class="section" style="padding-top:0">
+  <h2 class="section-title">🎯 Volatility Hunter Simulation</h2>
+  <div class="game-card">
+    <div class="game-header">
+      <div>
+        <div class="game-title" id="sc-title">Loading scenario...</div>
+        <div class="game-subtitle" id="sc-context">Analyse the IV data and choose the correct strategy bias.</div>
       </div>
-      <div class="score-display">
-        <span class="score-val" id="sc-score">0</span>
-        <span class="score-lbl">SCORE</span>
+      <div class="game-score-box">
+        <span class="game-score-val" id="sc-score">0</span>
+        <span class="game-score-lbl">SCORE</span>
       </div>
     </div>
-
-    <div class="scenario-data" id="sc-data">
-      <!-- populated by JS -->
-    </div>
-
-    <p style="font-family:'Cinzel',serif;font-size:.78rem;color:rgba(212,160,23,.7);letter-spacing:.06em;margin:0 0 .8rem">
-      WHAT SHOULD YOU DO?
-    </p>
-    <div class="choices-grid" id="sc-choices">
-      <!-- populated by JS -->
-    </div>
-
+    <div class="scenario-data" id="sc-data"></div>
+    <p style="font-family:'Cinzel',serif;font-size:.72rem;color:rgba(212,160,23,.7);letter-spacing:.06em;margin-bottom:8px">WHAT SHOULD YOU DO?</p>
+    <div class="choices-grid" id="sc-choices"></div>
     <div class="feedback-box" id="sc-feedback">
-      <p id="sc-feedback-text"></p>
-      <button class="next-btn" onclick="nextScenario()">Next Scenario →</button>
+      <p id="sc-fb-text"></p>
+      <button class="btn btn-outline btn-sm" onclick="nextScenario()">Next Scenario →</button>
     </div>
-
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:.5rem">
-      <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.3)">
-        SCENARIO <span id="sc-num">1</span> / <span id="sc-total">5</span>
-      </span>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem;color:rgba(255,255,255,.3)">
-        STREAK: <span id="sc-streak">0</span> 🔥
-      </span>
+    <div class="game-meta">
+      <span>Scenario <span id="sc-num">1</span> / <span id="sc-total">5</span></span>
+      <span>Streak: <span id="sc-streak">0</span> 🔥</span>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     SECTION 5 — EDUCATION
-     ═══════════════════════════════════════════════════════════ -->
-<div class="ve-section" style="padding-top:0">
-  <h2 class="ve-section-title"><span class="icon">📚</span>Conceptual Foundation</h2>
-
-  <div class="edu-grid">
-    <div class="edu-card">
-      <span class="edu-icon">📈</span>
-      <h4>What is IV Rank?</h4>
-      <p>IV Rank contextualises current implied volatility against its 52-week range. It answers: where does today's IV sit between the annual high and low?</p>
-      <div class="formula-box">
-        IV Rank = (Current IV − 52wk Low)<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;÷ (52wk High − 52wk Low) × 100
+<!-- ── SECTION 4: Education (collapsed by default) ── -->
+<div class="section" style="padding-top:0">
+  <h2 class="section-title">📚 Conceptual Foundation</h2>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="false">
+        <span class="acc-trigger-title">📈 What is IV Rank?</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body">
+        <p style="color:var(--text-sub);font-size:.9rem;line-height:1.65;margin-bottom:var(--sp-md)">IV Rank contextualises current implied volatility against its 52-week range. It answers: where does today's IV sit between the annual high and low?</p>
+        <div style="background:rgba(0,0,0,.3);border:1px solid rgba(212,160,23,.15);border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:rgba(212,160,23,.85);line-height:1.6">
+          IV Rank = (Current IV − 52wk Low) / (52wk High − 52wk Low) × 100
+        </div>
+        <p style="color:var(--text-sub);font-size:.85rem;margin-top:var(--sp-sm)"><strong style="color:var(--text)">Key caveat:</strong> IV Rank is sensitive to outliers. One crisis spike can suppress readings for an entire year. Always confirm with IV Percentile.</p>
       </div>
     </div>
-    <div class="edu-card">
-      <span class="edu-icon">📊</span>
-      <h4>What is IV Percentile?</h4>
-      <p>IV Percentile shows what percentage of days over the past year had lower IV than today. It considers the full distribution, making it more robust than IV Rank.</p>
-      <div class="formula-box">
-        IV Pctl = (Days with IV &lt; Current IV)<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;÷ Total Days × 100
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="false">
+        <span class="acc-trigger-title">📊 What is IV Percentile?</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body">
+        <p style="color:var(--text-sub);font-size:.9rem;line-height:1.65;margin-bottom:var(--sp-md)">IV Percentile shows what percentage of days over the past year had lower IV than today. It considers the full distribution, making it more robust than IV Rank.</p>
+        <div style="background:rgba(0,0,0,.3);border:1px solid rgba(212,160,23,.15);border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:rgba(212,160,23,.85);line-height:1.6">
+          IV Percentile = (Days with IV &lt; Current IV) / Total Days × 100
+        </div>
       </div>
     </div>
-    <div class="edu-card">
-      <span class="edu-icon">🔄</span>
-      <h4>Why IV Reverts to Mean</h4>
-      <p>Volatility exhibits strong mean-reverting behaviour. Extremes are statistically unlikely to persist — high IV tends to fall, low IV tends to rise. Mean reversion half-life is approximately 2–4 weeks, giving options traders a systematic edge.</p>
-    </div>
-    <div class="edu-card">
-      <span class="edu-icon">⚖️</span>
-      <h4>IV vs HV Premium</h4>
-      <p>When IV exceeds HV, options are expensive (volatility premium exists — favour selling). When IV is below HV, options are cheap (discount — favour buying). On average, IV exceeds HV by 2–3 percentage points — the systematic edge for premium sellers.</p>
-    </div>
-    <div class="edu-card">
-      <span class="edu-icon">🇮🇳</span>
-      <h4>India VIX Context</h4>
-      <p>India VIX measures expected 30-day Nifty 50 volatility. Normal range: 10–20. Spikes before elections, RBI policy, and budgets create premium-selling opportunities post-event as IV collapses sharply.</p>
-      <div class="formula-box">
-        Low: &lt;12 · Normal: 12–20<br>
-        Elevated: 20–25 · Crisis: &gt;35
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="false">
+        <span class="acc-trigger-title">🔄 Why Does IV Revert to the Mean?</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body">
+        <p style="color:var(--text-sub);font-size:.9rem;line-height:1.65">Volatility exhibits strong mean-reverting behaviour. Extreme high or low readings are statistically unlikely to persist. High IV tends to fall, low IV tends to rise. The mean reversion half-life is approximately 2–4 weeks — giving premium sellers a systematic edge. On average, IV exceeds HV by 2–3 percentage points (the "volatility risk premium").</p>
       </div>
     </div>
-    <div class="edu-card">
-      <span class="edu-icon">🎯</span>
-      <h4>IV Rank vs Percentile — Which to Use?</h4>
-      <p>IV Rank is sensitive to outliers (one crisis spike can suppress readings for a year). IV Percentile considers the full distribution. Best practice: use <strong>both</strong> together for confirmation — when both agree, the signal is stronger.</p>
+    <div class="accordion">
+      <button class="acc-trigger" aria-expanded="false">
+        <span class="acc-trigger-title">🇮🇳 India VIX Context</span>
+        <span class="acc-icon">▾</span>
+      </button>
+      <div class="acc-body">
+        <p style="color:var(--text-sub);font-size:.9rem;line-height:1.65;margin-bottom:var(--sp-sm)">India VIX measures expected 30-day Nifty 50 volatility. It spikes sharply before elections, RBI policy, and Union Budget announcements, then collapses post-event — creating ideal premium-selling setups.</p>
+        <div style="background:rgba(0,0,0,.3);border:1px solid rgba(212,160,23,.15);border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:rgba(212,160,23,.85);line-height:1.6">
+          Low: &lt;12 · Normal: 12–20 · Elevated: 20–25 · Crisis: &gt;35<br>
+          March 2020 peak: ~90
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- ── CTA Strip ── -->
+<div class="cta-strip">
+  <div class="cta-strip-inner">
+    <div class="cta-strip-text">
+      <h3>Regime Identified — Check Your Entry Timing Next</h3>
+      <p>Now that you know whether to buy or sell, the Decay Optimizer will tell you <em>when</em> in the weekly cycle to enter.</p>
+    </div>
+    <div class="cta-strip-actions">
+      <a href="/decay-optimizer" class="btn btn-primary">
+        ⏱ Open Decay Optimizer →
+      </a>
+      <a href="/strategy-lab" class="btn btn-ghost btn-sm">
+        📐 Strategy Lab
+      </a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
-// ══════════════════════════════════════════════════════════════════════════
-//  VOLATILITY ENGINE — JavaScript
-// ══════════════════════════════════════════════════════════════════════════
-
-// ── Strategy database (linked to Strategy Lab) ──
+// ══ STRATEGY DATABASE ══
 const STRATEGIES = {
   high: [
-    { name:'Iron Condor', rank:'>50', desc:'Sell OTM put spread + call spread. Defined risk. Best when IV Rank > 50, expecting range-bound.', lab:'Iron Condor' },
-    { name:'Short Strangle', rank:'>60', desc:'Sell OTM call + OTM put. Unlimited risk. Best when IV Rank > 60 and clear range established.', lab:'Iron Condor' },
-    { name:'Bear Call Spread', rank:'>50', desc:'Credit spread with directional bearish bias. Defined risk, lower capital requirement.', lab:'Bear Call Spread' },
-    { name:'Bull Put Spread', rank:'>50', desc:'Credit spread with directional bullish bias. Collect premium on downside protection.', lab:'Bull Put Spread' },
+    { name:'Iron Condor', regime:'SELL', desc:'Sell OTM call + put spreads. Defined risk. Best when IV Rank > 50%, expecting range-bound movement.'},
+    { name:'Short Strangle', regime:'SELL', desc:'Sell OTM call + OTM put. Best when IV Rank > 60% and a clear price range is established.'},
+    { name:'Bear Call Spread', regime:'SELL', desc:'Credit spread with mild bearish bias. Defined risk, lower capital requirement.'},
+    { name:'Bull Put Spread', regime:'SELL', desc:'Credit spread with mild bullish bias. Collect premium on downside protection level.'},
   ],
   low: [
-    { name:'Long Straddle', rank:'<30', desc:'Buy ATM call + ATM put. Profit from large move or IV expansion. Best when IV Rank < 30.', lab:'Long Straddle' },
-    { name:'Long Strangle', rank:'<30', desc:'Buy OTM call + OTM put. Cheaper than straddle, needs larger price move.', lab:'Long Strangle' },
-    { name:'Bull Call Spread', rank:'<50', desc:'Debit spread with directional bullish bias. Lower cost when IV is depressed.', lab:'Bull Call Spread' },
-    { name:'Calendar Spread', rank:'<40', desc:'Sell near-term, buy longer-dated option. Profits from term structure normalisation.', lab:'Calendar Spread' },
+    { name:'Long Straddle', regime:'BUY', desc:'Buy ATM call + put. Profit from large move or IV expansion. Best when IV Rank < 30%.'},
+    { name:'Long Strangle', regime:'BUY', desc:'Buy OTM call + put. Cheaper than straddle, needs larger price move to profit.'},
+    { name:'Bull Call Spread', regime:'BUY', desc:'Debit spread with directional bullish bias. Lower cost when IV is depressed.'},
+    { name:'Calendar Spread', regime:'BUY', desc:'Sell near-term, buy longer-dated. Profits from term structure normalisation.'},
   ],
   neutral: [
-    { name:'Iron Condor (½ size)', rank:'30–50', desc:'Smaller defined-risk position in mixed regime. Wait for better entry signal.', lab:'Iron Condor' },
-    { name:'Bull Put Spread', rank:'30–50', desc:'Selective directional premium selling when regime is ambiguous.', lab:'Bull Put Spread' },
+    { name:'Iron Condor (½ size)', regime:'SELL', desc:'Smaller defined-risk position in mixed regime. Wait for a clearer signal before full sizing.'},
+    { name:'Bull Put Spread', regime:'SELL', desc:'Selective directional premium selling. Reduce size when regime is ambiguous.'},
   ]
 };
 
 function calcIV() {
-  const civ   = parseFloat(document.getElementById('currentIV').value) || 0;
-  const high  = parseFloat(document.getElementById('highIV').value) || 0;
-  const low   = parseFloat(document.getElementById('lowIV').value) || 0;
-  const hv    = parseFloat(document.getElementById('hvInput').value) || 0;
-  const days  = parseFloat(document.getElementById('daysBelow').value) || 0;
+  const btn = document.getElementById('calcBtn');
+  setLoading(btn, true);
+  setTimeout(() => {
+    _doCalc();
+    setLoading(btn, false);
+  }, 300);
+}
 
+function _doCalc() {
+  const civ  = parseFloat(document.getElementById('currentIV').value) || 0;
+  const high = parseFloat(document.getElementById('highIV').value) || 1;
+  const low  = parseFloat(document.getElementById('lowIV').value) || 0;
+  const hv   = parseFloat(document.getElementById('hvInput').value) || 0;
+  const days = parseFloat(document.getElementById('daysBelow').value) || 0;
+
+  // Validate
   if (high <= low) {
-    alert('52-week High must be greater than 52-week Low');
+    const err = document.getElementById('err-iv');
+    err.textContent = '52-week High must exceed Low';
+    err.classList.add('show');
     return;
   }
 
@@ -1004,252 +571,210 @@ function calcIV() {
   const spread = (civ - hv).toFixed(1);
   const spreadSign = spread > 0 ? '+' : '';
 
-  // Populate values
-  document.getElementById('r-iv').textContent    = civ.toFixed(1) + '%';
-  document.getElementById('r-hv').textContent    = hv.toFixed(1) + '%';
-  document.getElementById('r-spread').textContent = spreadSign + spread + '%';
-  document.getElementById('r-rank').textContent  = ivRank + '%';
-  document.getElementById('r-pctl').textContent  = ivPctl + '%';
+  // Update metric cards
+  document.getElementById('topMetrics').style.display = 'grid';
+  document.getElementById('m-iv').textContent   = civ.toFixed(1) + '%';
+  document.getElementById('m-hv').textContent   = hv.toFixed(1) + '%';
+  document.getElementById('m-spread').textContent = spreadSign + spread + '%';
 
-  // Colour rank
-  const rankEl = document.getElementById('r-rank');
-  rankEl.className = 'value ' + (ivRank > 60 ? 'high' : ivRank < 35 ? 'low' : 'neutral');
+  const rankEl = document.getElementById('m-rank');
+  rankEl.textContent = ivRank + '%';
+  rankEl.className = 'metric-value ' + (ivRank > 60 ? 'val-red' : ivRank < 35 ? 'val-green' : 'val-amber');
 
-  const pctlEl = document.getElementById('r-pctl');
-  pctlEl.className = 'value ' + (ivPctl > 60 ? 'high' : ivPctl < 35 ? 'low' : 'neutral');
+  const pctlEl = document.getElementById('m-pctl');
+  pctlEl.textContent = ivPctl + '%';
+  pctlEl.className = 'metric-value ' + (ivPctl > 60 ? 'val-red' : ivPctl < 35 ? 'val-green' : 'val-amber');
 
-  const spreadEl = document.getElementById('r-spread');
-  spreadEl.className = 'value ' + (spread > 2 ? 'high' : spread < -2 ? 'low' : 'neutral');
+  const spreadEl = document.getElementById('m-spread');
+  spreadEl.className = 'metric-value ' + (parseFloat(spread) > 2 ? 'val-red' : parseFloat(spread) < -2 ? 'val-green' : 'val-amber');
 
-  // Determine regime
-  let regime;
-  if (ivRank >= 50 || ivPctl >= 50) regime = 'high';
-  else if (ivRank < 30 && ivPctl < 40) regime = 'low';
-  else regime = 'neutral';
+  // Regime
+  let regime = (ivRank >= 50 || ivPctl >= 50) ? 'high' : (ivRank < 30 && ivPctl < 40) ? 'low' : 'neutral';
 
-  const signals = { high:'🔴 SELL PREMIUM', low:'🟢 BUY PREMIUM', neutral:'⚖️ NEUTRAL' };
-  const subs    = { high:'IV Rich — Mean revert', low:'IV Cheap — Expand', neutral:'Mixed signals — wait' };
-  document.getElementById('r-signal').textContent     = signals[regime];
-  document.getElementById('r-signal-sub').textContent = subs[regime];
+  const signals = { high:'🔴 SELL PREMIUM', low:'🟢 BUY PREMIUM', neutral:'⚖️ SELECTIVE' };
+  const subs    = { high:'IV Rich — mean revert likely', low:'IV Cheap — expansion possible', neutral:'Mixed — reduce size' };
+  document.getElementById('m-signal').textContent = signals[regime];
+  document.getElementById('m-signal').className = 'metric-value ' + (regime==='high'?'val-red':regime==='low'?'val-green':'val-amber');
+  document.getElementById('m-signal-sub').textContent = subs[regime];
+
+  // Update status badge
+  const statusBadge = document.getElementById('calcStatus');
+  statusBadge.className = 'signal-badge ' + (regime==='high'?'sb-red':regime==='low'?'sb-green':'sb-amber');
+  statusBadge.innerHTML = '<span class="sb-dot"></span>' + (regime==='high'?'HIGH IV — Sell':regime==='low'?'LOW IV — Buy':'NEUTRAL — Reduce');
 
   // Gauges
-  document.getElementById('g-rank').style.width    = Math.min(ivRank,100) + '%';
-  document.getElementById('g-pctl').style.width    = Math.min(ivPctl,100) + '%';
+  document.getElementById('g-rank').style.width = Math.min(ivRank,100) + '%';
+  document.getElementById('g-pctl').style.width = Math.min(ivPctl,100) + '%';
   document.getElementById('g-rank-val').textContent = ivRank + '%';
   document.getElementById('g-pctl-val').textContent = ivPctl + '%';
 
-  // Show regime
-  ['high','low','neutral'].forEach(r => {
-    const el = document.getElementById('regime-' + r);
-    el.classList.remove('show');
-  });
-  document.getElementById('regime-' + regime).classList.add('show');
+  // Regime boxes
+  ['high','low','neutral'].forEach(r => document.getElementById('regime-' + r).classList.remove('visible'));
+  document.getElementById('regime-' + regime).classList.add('visible');
+
+  const regimeTexts = {
+    high: `IV Rank ${ivRank}% and IV Percentile ${ivPctl}% confirm options are priced at a premium to historical norms. ${ivRank > 70 ? 'This is a strong sell signal.' : 'Mean reversion from elevated IV typically delivers theta decay + vega profit to premium sellers over 2–4 weeks.'} IV exceeds HV by ${spreadSign}${spread} points.`,
+    low:  `IV Rank ${ivRank}% and IV Percentile ${ivPctl}% confirm options are historically cheap. Mean reversion from low IV environments requires patience and a catalyst. IV is ${Math.abs(spread)} points ${parseFloat(spread) < 0 ? 'below' : 'above'} Historical Volatility.`,
+    neutral: `Mixed readings — IV Rank ${ivRank}%, IV Percentile ${ivPctl}%. No strong directional volatility edge. Reduce position sizing and wait for clearer regime confirmation before committing to a premium-selling or buying bias.`
+  };
+  document.getElementById('regime-' + regime + '-text').textContent = regimeTexts[regime];
 
   // Interpretation
-  const interp = buildInterp(civ, ivRank, ivPctl, hv, spread, regime);
+  const interps = [];
+  if (ivRank > 70) interps.push('IV Rank is very high — options are at a significant premium to their annual range.');
+  else if (ivRank > 50) interps.push('IV Rank is elevated — above-average premium relative to the 52-week range.');
+  else if (ivRank < 25) interps.push('IV Rank is very low — options are near their cheapest point in the past year.');
+  if (ivPctl > 80) interps.push('IV Percentile confirms: higher than 80%+ of past year observations — strong sell bias.');
+  else if (ivPctl < 20) interps.push('IV Percentile confirms: lower than 80%+ of past year observations — strong buy bias.');
+  if (parseFloat(spread) > 3) interps.push('IV exceeds HV by more than 3 points — volatility risk premium is elevated.');
+  else if (parseFloat(spread) < -3) interps.push('IV is significantly below HV — options pricing less movement than recently realised.');
+  if (regime === 'high') interps.push('Selling premium at elevated IV Rank captures higher credit AND benefits from IV mean reversion — a double edge.');
+  if (regime === 'low') interps.push('Low IV environments require a catalyst or time for IV expansion to deliver premium-buyer profits.');
+
   const ip = document.getElementById('interpPanel');
-  ip.innerHTML = interp.map(t => `<div class="interp-item"><span class="interp-dot"></span>${t}</div>`).join('');
-  ip.classList.add('show');
+  ip.innerHTML = interps.map(t => `<div class="interp-item"><span class="interp-dot"></span>${t}</div>`).join('');
 
-  // Show results
-  document.getElementById('resultsArea').style.display = 'block';
+  // Show output
+  document.getElementById('signalOutput').classList.add('visible');
 
-  // Populate strategies
-  populateStrategies(regime);
-
-  // Smooth scroll to results
-  document.getElementById('resultsArea').scrollIntoView({ behavior:'smooth', block:'nearest' });
-}
-
-function buildInterp(civ, rank, pctl, hv, spread, regime) {
-  const lines = [];
-  if (rank > 70) lines.push('IV Rank is very high — options are priced at a significant premium to historical norms.');
-  else if (rank > 50) lines.push('IV Rank is elevated — options carry above-average premium relative to the 52-week range.');
-  else if (rank < 25) lines.push('IV Rank is very low — options are near their cheapest point in the past year.');
-  else lines.push('IV Rank is in neutral territory — no strong vol edge in either direction.');
-
-  if (pctl > 80) lines.push('IV Percentile confirms: current IV is higher than 80%+ of past year\'s readings. Strong sell signal.');
-  else if (pctl < 20) lines.push('IV Percentile confirms: current IV is lower than 80%+ of past year\'s readings. Strong buy signal.');
-
-  if (parseFloat(spread) > 3) lines.push('IV exceeds HV by more than 3 points — volatility risk premium is elevated, favouring premium sellers.');
-  else if (parseFloat(spread) < -3) lines.push('IV is significantly below HV — options are pricing less movement than recently realised. Favours buyers.');
-  else lines.push('IV and HV are relatively close — no extreme premium or discount in the volatility relationship.');
-
-  if (regime === 'high') lines.push('Mean reversion from elevated IV typically delivers theta decay + vega profit to premium sellers over 2–4 weeks.');
-  if (regime === 'low') lines.push('Low IV environments require patience. Catalysts or time are needed for IV expansion to deliver premium buyer profits.');
-  return lines;
-}
-
-function populateStrategies(regime) {
-  const grid = document.getElementById('stratGrid');
+  // Strategies
   const strats = STRATEGIES[regime] || STRATEGIES.neutral;
-  grid.innerHTML = strats.map(s => `
-    <div class="strat-card">
-      <p class="strat-name">${s.name}</p>
-      <span class="strat-regime ${regime === 'high' ? 'sell' : 'buy'}">
-        ${regime === 'high' ? 'SELL PREMIUM' : regime === 'low' ? 'BUY PREMIUM' : 'SELECTIVE'}
-        · IV Rank ${s.rank}
-      </span>
-      <p class="strat-desc">${s.desc}</p>
-      <div class="strat-actions">
-        <a href="/strategy-lab" class="strat-btn">📐 Visualize</a>
-        <a href="/calculator" class="strat-btn">🔢 Greeks</a>
+  const stratUrl = regime === 'high' ? '/strategy-lab?strategy=Iron+Condor' : '/strategy-lab';
+  document.getElementById('stratGrid').innerHTML = strats.map(s => `
+    <div class="strat-rec-card">
+      <p class="src-name">${s.name}</p>
+      <span class="src-regime ${s.regime === 'SELL' ? 'src-sell' : 'src-buy'}">${s.regime} PREMIUM</span>
+      <p class="src-desc">${s.desc}</p>
+      <div class="src-actions">
+        <a href="/strategy-lab" class="btn btn-ghost btn-sm">📐 Visualize</a>
+        <a href="/calculator" class="btn btn-ghost btn-sm">🔢 Greeks</a>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
+  document.getElementById('stratSection').style.display = 'block';
+
+  // XP
+  XP.add(15);
+  scrollToEl('topMetrics');
 }
 
-// ── Default populate on load ──
-populateStrategies('high');
-
-// ══════════════════════════════════════════════════════════════════════════
-//  VOLATILITY HUNTER GAME
-// ══════════════════════════════════════════════════════════════════════════
-
+// ══ VOLATILITY HUNTER GAME ══
 const SCENARIOS = [
   {
-    title: 'Nifty Pre-Election Spike',
-    context: 'India VIX has surged ahead of a major general election. Uncertainty is extreme. What is the best positioning?',
-    data: { 'Current IV':'28%', 'IV Rank':'82%', 'IV Pctl':'91%', 'HV (20d)':'16%', 'IV vs HV':'+12%', 'Regime':'HIGH' },
-    choices: [
-      { name:'Long Straddle', desc:'Buy ATM call + put, bet on big move', correct:false },
-      { name:'Iron Condor', desc:'Sell premium, collect elevated credit', correct:true },
-      { name:'Debit Spread', desc:'Directional play, pay premium', correct:false },
-      { name:'Do nothing', desc:'Wait for clarity before trading', correct:false },
+    title:'Nifty Pre-Election Spike',
+    context:'India VIX has surged ahead of a major general election. What is the best positioning?',
+    data:{'Current IV':'28%','IV Rank':'82%','IV Pctl':'91%','HV 20d':'16%','IV vs HV':'+12%','Regime':'HIGH'},
+    choices:[
+      {name:'Long Straddle',desc:'Buy ATM call + put',correct:false},
+      {name:'Iron Condor',desc:'Sell elevated premium with defined risk',correct:true},
+      {name:'Debit Spread',desc:'Pay premium for directional play',correct:false},
+      {name:'Do nothing',desc:'Wait for clarity',correct:false}
     ],
-    explanation: 'IV Rank of 82% signals extreme richness. Mean reversion post-election is textbook — India VIX collapsed from 25+ to 14 within days after 2019 results. Iron Condor captures this with defined risk. Long premium would be expensive and hurt by IV crush post-event.'
+    explanation:'IV Rank 82% signals extreme richness. India VIX collapsed post-election in 2019 — Iron Condor captures this with defined risk. Long premium is expensive and gets crushed post-event.'
   },
   {
-    title: '2017 Low Vol Environment',
-    context: 'VIX has traded below 12 for 3 months. Markets are calm, premium is cheap, and IV Rank sits near multi-year lows.',
-    data: { 'Current IV':'11%', 'IV Rank':'8%', 'IV Pctl':'6%', 'HV (20d)':'13%', 'IV vs HV':'-2%', 'Regime':'LOW' },
-    choices: [
-      { name:'Short Strangle', desc:'Sell cheap options for small credit', correct:false },
-      { name:'Long Straddle', desc:'Buy cheap options, wait for expansion', correct:true },
-      { name:'Iron Condor', desc:'Defined risk premium selling', correct:false },
-      { name:'Credit Spread', desc:'Directional premium collection', correct:false },
+    title:'2017 Low Vol Environment',
+    context:'VIX below 12 for 3 months. IV Rank near multi-year lows. What do you do?',
+    data:{'Current IV':'11%','IV Rank':'8%','IV Pctl':'6%','HV 20d':'13%','IV vs HV':'-2%','Regime':'LOW'},
+    choices:[
+      {name:'Short Strangle',desc:'Sell cheap options for small credit',correct:false},
+      {name:'Long Straddle',desc:'Buy cheap options, wait for expansion',correct:true},
+      {name:'Iron Condor',desc:'Defined risk premium selling',correct:false},
+      {name:'Credit Spread',desc:'Directional premium collection',correct:false}
     ],
-    explanation: 'IV Rank at 8% means options are near their cheapest in years. Premium selling when IV is this low offers minimal reward for significant risk. Long Straddle positions for the inevitable mean reversion spike (as seen in Feb 2018 Volmageddon). Buy premium when cheap.'
+    explanation:'IV Rank 8% means options are near their cheapest in years. Selling offers minimal reward for significant risk. Long Straddle positions for the inevitable mean reversion spike (as seen in Feb 2018 Volmageddon).'
   },
   {
-    title: 'Bank Nifty Earnings Week',
-    context: 'A major private bank is reporting Q3 results in 3 days. IV has risen sharply but IV Rank is moderate. What do you do?',
-    data: { 'Current IV':'32%', 'IV Rank':'55%', 'IV Pctl':'62%', 'HV (20d)':'22%', 'IV vs HV':'+10%', 'Regime':'HIGH' },
-    choices: [
-      { name:'Short Straddle', desc:'Sell ATM call + put, maximum premium', correct:false },
-      { name:'Iron Condor', desc:'Defined risk, sell elevated premium', correct:true },
-      { name:'Long Strangle', desc:'Buy OTM options for big move', correct:false },
-      { name:'Calendar Spread', desc:'Sell near-term, buy longer-term', correct:false },
+    title:'Post-RBI Policy Calm',
+    context:'RBI held rates as expected. India VIX has settled. IV Rank has normalised.',
+    data:{'Current IV':'16%','IV Rank':'38%','IV Pctl':'44%','HV 20d':'15%','IV vs HV':'+1%','Regime':'NEUTRAL'},
+    choices:[
+      {name:'Large Iron Condor',desc:'Full-size premium selling position',correct:false},
+      {name:'Large Straddle',desc:'Full-size premium buying',correct:false},
+      {name:'Half-Size Bull Put',desc:'Selective, smaller directional position',correct:true},
+      {name:'No trade — wait',desc:'Hold cash for a clearer signal',correct:false}
     ],
-    explanation: 'IV Rank 55% with IV >> HV confirms premium is rich pre-earnings. Iron Condor (defined risk) is better than Short Straddle here due to binary event risk — the wings protect against surprise blowouts. Short Straddle has theoretically unlimited loss if the stock gaps violently.'
+    explanation:'IV Rank 38% gives no strong signal. Neutral regime means reduced size or selective trades. Half-size directional position acknowledges the lack of edge. Avoid full-size either way.'
   },
   {
-    title: 'Post-RBI Policy Calm',
-    context: 'RBI held rates as expected. India VIX has settled post-announcement. IV Rank has normalised to neutral territory.',
-    data: { 'Current IV':'16%', 'IV Rank':'38%', 'IV Pctl':'44%', 'HV (20d)':'15%', 'IV vs HV':'+1%', 'Regime':'NEUTRAL' },
-    choices: [
-      { name:'Large Iron Condor', desc:'Full-size premium selling position', correct:false },
-      { name:'Large Straddle', desc:'Full-size premium buying position', correct:false },
-      { name:'Half-Size Bull Put', desc:'Selective, smaller directional position', correct:true },
-      { name:'No trade — wait', desc:'Hold cash until a clearer signal', correct:false },
+    title:'COVID-19 Peak Volatility',
+    context:'March 2020 — India VIX near 90. Markets in freefall. What is the RIGHT move?',
+    data:{'Current IV':'85%','IV Rank':'99%','IV Pctl':'100%','HV 20d':'70%','IV vs HV':'+15%','Regime':'EXTREME'},
+    choices:[
+      {name:'Full Short Strangle',desc:'Sell maximum premium at extremes',correct:false},
+      {name:'Small Iron Condor',desc:'Defined risk, reduced size, very wide strikes',correct:true},
+      {name:'Iron Butterfly',desc:'Large defined-risk premium sale',correct:false},
+      {name:'Long Straddle',desc:'Buy for further vol expansion',correct:false}
     ],
-    explanation: 'IV Rank 38% and IV Percentile 44% give no strong signal either way. This is a neutral regime — the correct answer is to either stand aside or trade selectively at reduced size. Half-size directional position acknowledges the lack of edge. Avoid over-committing with full-size strategies.'
+    explanation:'IV Rank 99% screams sell premium — but this is a tail event. SMALL iron condor with very wide strikes captures the thesis while strictly limiting maximum loss. NEVER full-size in extreme regimes — vol can keep rising.'
   },
   {
-    title: 'COVID-19 Market Crash',
-    context: 'March 2020 — India VIX peaks near 90. Markets are in freefall. What is the RIGHT move now?',
-    data: { 'Current IV':'85%', 'IV Rank':'99%', 'IV Pctl':'100%', 'HV (20d)':'70%', 'IV vs HV':'+15%', 'Regime':'EXTREME HIGH' },
-    choices: [
-      { name:'Full Short Strangle', desc:'Sell maximum premium at extreme levels', correct:false },
-      { name:'Iron Butterfly', desc:'Large defined-risk premium sale at peak', correct:false },
-      { name:'Small Iron Condor', desc:'Defined risk, reduced size, wide strikes', correct:true },
-      { name:'Long Straddle', desc:'Buy premium for further vol expansion', correct:false },
+    title:'Bank Nifty Earnings Week',
+    context:'Major bank reports Q3 results in 3 days. IV Rank 55%. What is the best approach?',
+    data:{'Current IV':'32%','IV Rank':'55%','IV Pctl':'62%','HV 20d':'22%','IV vs HV':'+10%','Regime':'HIGH'},
+    choices:[
+      {name:'Short Straddle',desc:'Sell ATM call + put, maximum premium',correct:false},
+      {name:'Iron Condor',desc:'Defined risk, sell elevated premium',correct:true},
+      {name:'Long Strangle',desc:'Buy OTM options for big move',correct:false},
+      {name:'Calendar Spread',desc:'Sell near-term, buy longer-dated',correct:false}
     ],
-    explanation: 'IV Rank 99% SCREAMS sell premium — but this is a tail event. Selling unhedged (strangle/butterfly) with unlimited risk during a market crash can be catastrophic if vol keeps rising (it can go from 85% to 150%). SMALL iron condor with very wide strikes captures the premium thesis while strictly limiting the maximum loss. NEVER full-size in extreme regimes.'
+    explanation:'IV Rank 55% with IV >> HV confirms pre-earnings premium richness. Iron Condor (defined risk) is better than Short Straddle here because earnings carry binary event risk — the wings protect against a gap blowout.'
   }
 ];
 
-let currentScenario = 0;
-let score = 0;
-let streak = 0;
-let answered = false;
+let curScenario = 0, score = 0, streak = 0, answered = false;
 
 function loadScenario(idx) {
   const sc = SCENARIOS[idx];
   if (!sc) {
-    // All done
     document.getElementById('sc-title').textContent = '🏆 Simulation Complete!';
-    document.getElementById('sc-context').textContent = 'You have completed all scenarios.';
-    document.getElementById('sc-data').innerHTML = `<div style="grid-column:1/-1;text-align:center;font-family:'Cinzel',serif;color:var(--gold);font-size:1.2rem;">Final Score: ${score} points · Streak: ${streak} 🔥</div>`;
-    document.getElementById('sc-choices').innerHTML = `<button onclick="restartGame()" style="grid-column:1/-1" class="calc-btn">🔄 Play Again</button>`;
+    document.getElementById('sc-context').textContent = 'All scenarios finished.';
+    document.getElementById('sc-data').innerHTML = `<div style="grid-column:1/-1;text-align:center;font-family:'Cinzel',serif;color:var(--gold);font-size:1.1rem">Final Score: ${score} · Streak: ${streak} 🔥</div>`;
+    document.getElementById('sc-choices').innerHTML = `<button onclick="restartGame()" style="grid-column:1/-1" class="btn btn-outline">🔄 Play Again</button>`;
     document.getElementById('sc-feedback').classList.remove('show');
     return;
   }
-
   answered = false;
   document.getElementById('sc-title').textContent = sc.title;
   document.getElementById('sc-context').textContent = sc.context;
   document.getElementById('sc-num').textContent = idx + 1;
   document.getElementById('sc-total').textContent = SCENARIOS.length;
   document.getElementById('sc-feedback').classList.remove('show');
-
-  // Data tiles
   document.getElementById('sc-data').innerHTML = Object.entries(sc.data).map(([k,v]) => `
-    <div class="sd-item">
-      <span class="sd-key">${k}</span>
-      <span class="sd-val">${v}</span>
-    </div>
-  `).join('');
-
-  // Choices
+    <div class="sd-item"><span class="sd-key">${k}</span><span class="sd-val">${v}</span></div>`).join('');
   document.getElementById('sc-choices').innerHTML = sc.choices.map((c,i) => `
     <button class="choice-btn" onclick="answerScenario(${i})">
       <span class="choice-name">${c.name}</span>
       <span class="choice-desc">${c.desc}</span>
-    </button>
-  `).join('');
+    </button>`).join('');
 }
 
-function answerScenario(choiceIdx) {
+function answerScenario(idx) {
   if (answered) return;
   answered = true;
-  const sc = SCENARIOS[currentScenario];
-  const choice = sc.choices[choiceIdx];
-  const btns = document.querySelectorAll('.choice-btn');
-
-  btns.forEach((btn, i) => {
-    if (sc.choices[i].correct) btn.classList.add('correct');
-    else if (i === choiceIdx && !choice.correct) btn.classList.add('wrong');
-    btn.style.pointerEvents = 'none';
+  const sc = SCENARIOS[curScenario];
+  const choice = sc.choices[idx];
+  document.querySelectorAll('.choice-btn').forEach((b,i) => {
+    if (sc.choices[i].correct) b.classList.add('correct');
+    else if (i === idx && !choice.correct) b.classList.add('wrong');
+    b.style.pointerEvents = 'none';
   });
-
   const pts = choice.correct ? 100 + (streak * 10) : 0;
-  if (choice.correct) { score += pts; streak++; }
+  if (choice.correct) { score += pts; streak++; XP.add(pts > 100 ? 25 : 15); }
   else { streak = 0; }
-
   document.getElementById('sc-score').textContent = score;
   document.getElementById('sc-streak').textContent = streak;
-
   const fb = document.getElementById('sc-feedback');
-  document.getElementById('sc-feedback-text').textContent = (choice.correct ? '✅ Correct! +' + pts + ' pts — ' : '❌ Not quite — ') + sc.explanation;
-  fb.style.borderLeftColor = choice.correct ? 'var(--vol-low)' : 'var(--vol-high)';
+  document.getElementById('sc-fb-text').textContent = (choice.correct ? '✅ Correct! +' + pts + ' pts — ' : '❌ Incorrect — ') + sc.explanation;
+  fb.style.borderLeftColor = choice.correct ? 'var(--c-green)' : 'var(--c-red)';
   fb.classList.add('show');
 }
 
-function nextScenario() {
-  currentScenario++;
-  loadScenario(currentScenario);
-}
-
-function restartGame() {
-  currentScenario = 0; score = 0; streak = 0;
+function nextScenario() { curScenario++; loadScenario(curScenario); }
+function restartGame()   { curScenario = 0; score = 0; streak = 0;
   document.getElementById('sc-score').textContent = 0;
   document.getElementById('sc-streak').textContent = 0;
-  loadScenario(0);
-}
+  loadScenario(0); }
 
-// Init on page load
 loadScenario(0);
 </script>
-
 {% endblock %}
