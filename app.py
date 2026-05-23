@@ -198,6 +198,12 @@ def _int(form, key, default=None):
     except (ValueError, AttributeError):
         return default
 
+def _float(val, default=0.0):
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
 
 # ── Routes ─────────────────────────────────────────────────────────────────
 @app.route('/')
@@ -665,71 +671,6 @@ def theta_timing_api():
         'recommended_strategy': strategy,
         'iv_rank':            iv_rank,
         'event_flag':         event,
-    })
-
-
-# ══════════════════════════════════════════════════════════════════════════
-#  API ENDPOINTS — used for cross-module URL param passing
-# ══════════════════════════════════════════════════════════════════════════
-
-@app.route('/api/iv-rank', methods=['POST'])
-def iv_rank_api():
-    """POST {current_iv, high_iv, low_iv, hv, days_below} → IV metrics JSON"""
-    import math
-    from flask import request, jsonify
-    data = request.get_json(force=True)
-    current_iv = _float(data.get('current_iv', 0))
-    high_iv    = _float(data.get('high_iv', 1))
-    low_iv     = _float(data.get('low_iv', 0))
-    hv         = _float(data.get('hv', 0))
-    days_below = _float(data.get('days_below', 0))
-    if high_iv <= low_iv:
-        return jsonify({'error': '52-week high must exceed low'}), 400
-    iv_rank       = round((current_iv - low_iv) / (high_iv - low_iv) * 100, 1)
-    iv_percentile = round(days_below / 252 * 100, 1)
-    iv_hv_spread  = round(current_iv - hv, 2)
-    if iv_rank >= 50 or iv_percentile >= 50:
-        regime, signal = 'high', 'sell_premium'
-    elif iv_rank < 30 and iv_percentile < 40:
-        regime, signal = 'low', 'buy_premium'
-    else:
-        regime, signal = 'neutral', 'neutral'
-    return jsonify({
-        'iv_rank': iv_rank, 'iv_percentile': iv_percentile,
-        'iv_hv_spread': iv_hv_spread, 'regime': regime, 'signal': signal,
-        'current_iv': current_iv, 'hv': hv,
-    })
-
-@app.route('/api/theta-timing', methods=['POST'])
-def theta_timing_api():
-    """POST {dte, premium, iv_rank, event_flag} → Theta timing signal JSON"""
-    import math
-    from flask import request, jsonify
-    data    = request.get_json(force=True)
-    dte     = max(0, min(7, int(data.get('dte', 4))))
-    premium = _float(data.get('premium', 180))
-    iv_rank = _float(data.get('iv_rank', 50))
-    event   = data.get('event_flag', 'none')
-    tv_remaining = round(premium * math.sqrt(dte / 7))
-    daily_theta  = round(premium * (math.sqrt(dte/7) - math.sqrt(max(0, dte-1)/7))) if dte > 0 else premium
-    gamma_score  = 95 if dte <= 1 else 72 if dte <= 2 else 48 if dte <= 3 else 25 if dte <= 4 else 12
-    target_exit  = round(premium * 0.5)
-    stop_loss    = round(premium * 2)
-    if event in ('major', 'earnings'):
-        signal, strategy = 'avoid_event', 'Skip — wait for post-event IV crush'
-    elif dte >= 6:
-        signal, strategy = 'too_early', 'Observe — wait for 4–5 DTE window'
-    elif dte >= 4:
-        signal, strategy = 'optimal', 'Iron Condor (defined risk) — optimal entry'
-    elif dte == 3:
-        signal, strategy = 'aggressive', 'Iron Condor at reduced size — aggressive'
-    else:
-        signal, strategy = 'avoid_gamma', 'Avoid — gamma risk too high'
-    return jsonify({
-        'dte': dte, 'signal': signal, 'gamma_score': gamma_score,
-        'daily_theta': daily_theta, 'tv_remaining': tv_remaining,
-        'target_exit': target_exit, 'stop_loss_trigger': stop_loss,
-        'recommended_strategy': strategy, 'iv_rank': iv_rank, 'event_flag': event,
     })
 
 
