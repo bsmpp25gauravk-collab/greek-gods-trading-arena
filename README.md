@@ -87,6 +87,10 @@ Render hosts Flask apps for free. No credit card needed.
 
 **That's your live website! Share the link in your project submission.**
 
+**Optional (already included in this repo):**
+- `runtime.txt` pins the Python version used by Render.
+- `render.yaml` enables one-click Blueprint deploys (New + → Blueprint).
+
 ---
 
 ## 📊 What Each Page Does
